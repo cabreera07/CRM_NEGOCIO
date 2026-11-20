@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel de atención</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-tema="azul">
+
+  <div id="login">
+    <div class="logo">⚡</div>
+    <h2>Panel de atención</h2>
+    <p class="mut">Entra con tu usuario y PIN</p>
+    <input id="usr" autocapitalize="none" autocomplete="username" placeholder="Usuario">
+    <input id="pin" type="password" autocomplete="current-password" placeholder="PIN">
+    <div class="row"><button class="btn" id="lg-ok">Entrar</button></div>
+    <p id="lg-err" class="mut" style="color:var(--ba);margin-top:10px"></p>
+  </div>
+
+  <div id="app" class="hide">
+    <nav id="nav"></nav>
+    <div id="shell">
+      <header>
+        <button class="btn sec sm hide" id="hback">‹</button>
+        <h1 id="htitle"></h1>
+        <span style="flex:1"></span>
+        <span class="mut" id="quien"></span>
+        <button class="btn sec sm" id="refrescar" title="Actualizar">⟳</button>
+      </header>
+      <main id="main"></main>
+    </div>
+  </div>
+
+  <datalist id="transps">
+    <option value="Cargo Expreso">
+    <option value="Forza">
+  </datalist>
+  <div id="toast"></div>
+  <div id="busy">Procesando…</div>
+
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
