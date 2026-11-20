@@ -128,3 +128,16 @@ label{display:block;margin-top:10px;font-size:13px;color:var(--mu)}
 .compose{display:flex;gap:8px;padding:10px;border-top:1px solid var(--bd);align-items:flex-end}
 .compose textarea{flex:1;resize:none;max-height:120px;line-height:1.3}
 #rap{padding:6px 10px 0;margin:0}
+/* ===== Iconos SVG (reemplazan a los emojis) ===== */
+.sv{width:1.15em;height:1.15em;vertical-align:-.2em;flex:none}
+.btn .sv{margin-right:.15em}
+.btn .sv:only-child{margin-right:0}
+header h1 .sv{color:var(--pri);filter:drop-shadow(0 0 8px var(--glow))}
+#nav button span .sv{width:23px;height:23px;margin:0}
+#nav .brand .sv{width:28px;height:28px;color:var(--pri);filter:drop-shadow(0 0 10px var(--pri))}
+#login .logo .sv{width:50px;height:50px;color:var(--pri);filter:drop-shadow(0 0 16px var(--pri))}
+.em .sv{width:34px;height:34px;color:var(--pri);filter:drop-shadow(0 0 8px var(--glow))}
+.al .ic .sv{width:22px;height:22px;color:var(--pri)}
+.al.rojo .ic .sv{color:var(--ba)}
+.al.amarillo .ic .sv{color:var(--wa)}
+.empty .sv{width:1.3em;height:1.3em;color:var(--pri)}
