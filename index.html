@@ -8,16 +8,23 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23050b1a'/%3E%3Cpolygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2' fill='none' stroke='%2322d3ff' stroke-width='1.8' stroke-linejoin='round' transform='translate(2.4 2.4) scale(.8)'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body data-tema="azul">
+<body data-modo="oscuro" data-anim="equilibrado">
+
+  <div class="bg" id="bgA"></div>
+  <div class="bg" id="bgB"></div>
+  <div id="veil"></div>
 
   <div id="login">
-    <div class="logo">⚡</div>
-    <h2>Panel de atención</h2>
-    <p class="mut">Entra con tu usuario y PIN</p>
-    <input id="usr" autocapitalize="none" autocomplete="username" placeholder="Usuario">
-    <input id="pin" type="password" autocomplete="current-password" placeholder="PIN">
-    <div class="row"><button class="btn" id="lg-ok">Entrar</button></div>
-    <p id="lg-err" class="mut" style="color:var(--ba);margin-top:10px"></p>
+    <div class="box">
+      <div class="logo" id="lg-logo">⚡</div>
+      <h2 id="lg-titulo">Panel de atención</h2>
+      <p class="mut" id="lg-sub">Entra con tu usuario y PIN</p>
+      <input id="usr" autocapitalize="none" autocomplete="username" placeholder="Usuario">
+      <input id="pin" type="password" autocomplete="current-password" placeholder="PIN">
+      <div class="row"><button class="btn" id="lg-ok">Entrar</button></div>
+      <p id="lg-err" class="mut" style="color:var(--ba);margin-top:10px"></p>
+      <p class="mut" id="lg-neg" style="margin-top:14px;font-size:12px"></p>
+    </div>
   </div>
 
   <div id="app" class="hide">
@@ -27,6 +34,7 @@
         <button class="btn sec sm hide" id="hback">‹</button>
         <h1 id="htitle"></h1>
         <span style="flex:1"></span>
+        <b class="hneg" id="hneg"></b>
         <span class="mut" id="quien"></span>
         <button class="btn sec sm" id="refrescar" title="Actualizar">⟳</button>
       </header>
@@ -41,8 +49,10 @@
   <div id="toast"></div>
   <div id="busy">Procesando…</div>
 
-  <script src="js/icons.js"></script>
   <script src="js/config.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/tema.js"></script>
+  <script src="js/disenio.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

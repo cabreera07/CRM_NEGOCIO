@@ -3,8 +3,8 @@ const SIG_TXT = { PENDIENTE_PAGO:'✅ Confirmar pago', CONFIRMADO:'🛠️ Prepa
 const ESTADO_COL = { PENDIENTE_PAGO:'#ffc247', CONFIRMADO:'#22d3ff', PREPARANDO:'#3b82f6', EMPACADO:'#6366f1', DESPACHADO:'#a78bfa', EN_RUTA:'#c084fc', ENTREGADO:'#2ef2a5', INCIDENCIA:'#ff9f43', CANCELADO:'#ff5c8a' };
 const ICON = { photo:'📸', clock:'⏰', truck:'🚚', 'message-circle':'💬', package:'📦' };
 const NAV = [['inicio','🏠','Inicio'],['chats','💬','Chats'],['pedidos','📦','Pedidos'],['clientes','👥','Clientes'],['mas','🧰','Más']];
-const SUB = { inventario:1, pagos:1, ruta:1, equipo:1, rapidas:1 };
-const TITULOS = { chats:'Chats', pedidos:'Pedidos', clientes:'Clientes', mas:'Herramientas', inventario:'Inventario', pagos:'Verificar pagos', ruta:'Ruta del día', equipo:'Equipo', rapidas:'Respuestas rápidas' };
+const SUB = { inventario:1, pagos:1, ruta:1, equipo:1, rapidas:1, diseno:1 };
+const TITULOS = { chats:'Chats', pedidos:'Pedidos', clientes:'Clientes', mas:'Herramientas', inventario:'Inventario', pagos:'Verificar pagos', ruta:'Ruta del día', equipo:'Equipo', rapidas:'Respuestas rápidas', diseno:'Diseño y marca' };
 const PERIODOS = [['hoy','Hoy'],['7d','7 días'],['30d','30 días'],['mes','Este mes']];
 const TEMAS = { azul:'Azul neón', violeta:'Violeta neón', claro:'Claro' };
 
@@ -25,13 +25,13 @@ const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'
 const fmt = t => esc(t).replace(/\*([^*\n]+)\*/g,'<b>$1</b>').replace(/(^|[\s(])_([^_\n]+)_(?=$|[\s).,!?])/g,'$1<i>$2</i>');
 const Q = n => 'Q' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
 const Q0 = n => 'Q' + Math.round(Number(n || 0)).toLocaleString('en-US');
-const pintar = h => { $('#main').innerHTML = h; };
+const pintar = h => { $('#main').innerHTML = h; escalonar(); };
+function escalonar() { $$('#main .anim').forEach((el, i) => el.style.setProperty('--i', Math.min(i, 16))); }
 function skeleton() { return '<div class="g g2">' + [1,2,3,4].map(() => '<div class="card"><div class="sk" style="width:50%"></div><div class="sk" style="width:80%;height:26px;margin-top:10px"></div></div>').join('') + '</div>'; }
 function avColor(s) { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) % 360; return 'hsl(' + h + ' 85% 62%)'; }
 function avatar(nom) { const ini = (String(nom).replace(/[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ]/g,'')[0] || '#').toUpperCase(); return '<div class="av" style="background:' + avColor(nom) + ';color:#06101f">' + esc(ini) + '</div>'; }
 
-function tema(t) { document.body.dataset.tema = t; try { localStorage.setItem('tema', t); } catch (e) {} }
-try { tema(localStorage.getItem('tema') || 'azul'); } catch (e) {}
+
 
 function ping() {
   if (!SONIDO) return;
@@ -124,7 +124,7 @@ function areaChart(labels, vals) {
   const area = line + ' L' + pts[n - 1][0].toFixed(1) + ' ' + (H - P) + ' L' + pts[0][0].toFixed(1) + ' ' + (H - P) + ' Z';
   const dots = n <= 31 ? pts.map((p, i) => '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="4" style="fill:var(--bg2);stroke:var(--pri);stroke-width:2"><title>' + esc(labels[i]) + ' · ' + Q0(vals[i]) + '</title></circle>').join('') : '';
   return '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;margin-top:8px"><defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--pri);stop-opacity:.45"/><stop offset="1" style="stop-color:var(--pri);stop-opacity:0"/></linearGradient></defs>' +
-    '<path d="' + area + '" fill="url(#ga)"/><path d="' + line + '" fill="none" style="stroke:var(--pri);stroke-width:2.5;filter:drop-shadow(0 0 6px var(--glow))" stroke-linejoin="round"/>' + dots + '</svg>';
+    '<path d="' + area + '" fill="url(#ga)"/><path class="draw" pathLength="1" d="' + line + '" fill="none" style="stroke:var(--pri);stroke-width:2.5;filter:drop-shadow(0 0 6px var(--glow))" stroke-linejoin="round"/>' + dots + '</svg>';
 }
 function barrasHoras(h) {
   const max = Math.max(...h, 1);
@@ -142,6 +142,7 @@ function rank(items, f) {
                       : '<div class="empty" style="padding:14px 0">Sin datos en este período</div>';
 }
 function animarContadores(quieto) {
+  $('#main').classList.toggle('quieto', !!quieto);
   $$('[data-n]').forEach(el => {
     const fin = Number(el.dataset.n), f = el.dataset.f;
     const fv = v => f === 'q' ? Q0(v) : f === 'q2' ? Q(v) : Math.round(v).toLocaleString('en-US');
@@ -156,22 +157,28 @@ function animarContadores(quieto) {
 function cerrarSesion(msg) {
   TOKEN = ''; CHAT = null; PREV_SL = null;
   try { sessionStorage.removeItem('tok'); } catch (e) {}
+  if (typeof salirDiseno === 'function' && TAB === 'diseno') salirDiseno();
   $('#app').classList.add('hide'); $('#login').classList.remove('hide');
+  Tema.modoLogin(true);
   $('#lg-err').textContent = msg || ''; $('#pin').value = '';
 }
+
 function armarNav() {
-  $('#nav').innerHTML = '<div class="brand">⚡</div>' +
+  $('#nav').innerHTML = '<div id="navind"></div><div class="brand">' + Tema.logoHtml(40) + '</div>' +
     NAV.map(n => '<button data-tab="' + n[0] + '"><span>' + n[1] + '<i id="b_' + n[0] + '" class="bdg hide">0</i></span>' + n[2] + '</button>').join('') +
     '<div class="nf"><button id="nsalir"><span>⎋</span>Salir</button></div>';
   $$('#nav button[data-tab]').forEach(b => { b.onclick = () => mostrarTab(b.dataset.tab); });
   $('#nsalir').onclick = () => cerrarSesion('');
+  requestAnimationFrame(moverIndicador);
 }
 function badge(id, n) { const b = $('#b_' + id); if (b) { b.textContent = n; b.classList.toggle('hide', !n); } }
 
 async function arrancar() {
   const r = await api('init');
   ME = r.ses; ADMIN = ME.r === 'admin'; ESTADOS = r.estados; RAPIDAS = r.rapidas || [];
+  if (r.diseno) Tema.aplicar(r.diseno);
   $('#login').classList.add('hide'); $('#app').classList.remove('hide');
+  Tema.modoLogin(false);
   $('#quien').textContent = (ADMIN ? '👑 ' : '') + ME.n;
   armarNav();
   mostrarTab('inicio');
@@ -192,9 +199,14 @@ try { TOKEN = sessionStorage.getItem('tok') || ''; } catch (e) {}
 if (TOKEN) arrancar().catch(() => {});
 
 async function mostrarTab(t, arg) {
+  const prev = TAB;
+  if (prev === 'diseno' && t !== 'diseno') salirDiseno();
   TAB = t;
   const base = SUB[t] ? 'mas' : t;
   $$('#nav button[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === base));
+  moverIndicador();
+  Tema.seccion(base);
+  const mainEl = $('#main'); mainEl.classList.remove('enter'); void mainEl.offsetWidth; mainEl.classList.add('enter');
   $('#htitle').textContent = t === 'inicio' ? (ADMIN ? '⚡ Centro de mando' : '⚡ Mi turno') : (TITULOS[t] || '');
   $('#hback').classList.toggle('hide', !SUB[t]);
   try {
@@ -209,8 +221,17 @@ async function mostrarTab(t, arg) {
     if (t === 'ruta')       return await vistaRuta();
     if (t === 'equipo')     return await vistaEquipo();
     if (t === 'rapidas')    return vistaRapidas();
+    if (t === 'diseno')     return await vistaDiseno();
   } catch (e) { if (TAB === t && TOKEN) pintar('<div class="empty">' + esc(e.message) + '</div>'); }
 }
+
+function moverIndicador() {
+  const nav = $('#nav'), ind = $('#navind'), on = nav && nav.querySelector('button[data-tab].on');
+  if (!ind || !on) return;
+  ind.style.width = on.offsetWidth + 'px'; ind.style.height = on.offsetHeight + 'px';
+  ind.style.transform = 'translate(' + on.offsetLeft + 'px,' + on.offsetTop + 'px)';
+}
+window.addEventListener('resize', moverIndicador);
 
 /* ================= INICIO ================= */
 function htmlTorre(t) {
@@ -542,6 +563,7 @@ function armarPedidos() {
   $$('[data-v]').forEach(c => { c.onclick = () => { PF.vista = c.dataset.v; renderPedLista(); }; });
   $('#plimpiar').onclick = () => { Object.assign(PF, { estado:'activos', pago:'todos', muni:'todos', rango:'todos', q:'', orden:'recientes' }); armarPedidos(); };
   $('#plista').onclick = accionPedido;
+    ligarDnD($('#plista'));
   renderPedLista();
 }
 function renderPedLista() {
@@ -569,10 +591,37 @@ function cardPedido(p) {
 function tableroHtml(lista) {
   return '<div class="board">' + COLS.map(e => {
     const items = lista.filter(p => p.estado === e);
-    return '<div class="col"><div class="top" style="align-items:center"><span class="badge b-' + e + '">' + e.replace('_', ' ') + '</span><b>' + items.length + '</b></div>' +
-      (items.map(p => '<div class="mini"><div class="top"><b>' + esc(p.id) + '</b><span>' + esc(p.total) + '</span></div><div class="mut nm">' + esc(p.nombre || ('+' + p.tel)) + '</div><div class="mut nm">📍 ' + esc(p.muni) + '</div>' +
+    return '<div class="col" data-col="' + e + '"><div class="top" style="align-items:center"><span class="badge b-' + e + '">' + e.replace('_', ' ') + '</span><b>' + items.length + '</b></div>' +
+      (items.map(p => '<div class="mini" draggable="true" data-drag="' + esc(p.id) + '"><div class="top"><b>' + esc(p.id) + '</b><span>' + esc(p.total) + '</span></div><div class="mut nm">' + esc(p.nombre || ('+' + p.tel)) + '</div><div class="mut nm">📍 ' + esc(p.muni) + '</div>' +
         '<div class="row"><button class="btn sm" style="flex:1" data-a="sig" data-id="' + esc(p.id) + '">' + SIG_TXT[e] + '</button><button class="btn sec sm" data-a="chat" data-id="' + esc(p.id) + '">💬</button></div></div>').join('') || '<div class="mut" style="padding:12px 0;text-align:center">—</div>') + '</div>';
   }).join('') + '</div>';
+}
+
+// Arrastrar tarjetas entre columnas (computadora). Al soltar, pide confirmar el cambio de estado.
+function ligarDnD(el) {
+  let arrastrando = null;
+  el.addEventListener('dragstart', e => {
+    const m = e.target.closest && e.target.closest('.mini'); if (!m) return;
+    arrastrando = m.dataset.drag; m.classList.add('drag');
+    e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', arrastrando);
+  });
+  el.addEventListener('dragend', e => {
+    const m = e.target.closest && e.target.closest('.mini'); if (m) m.classList.remove('drag');
+    $$('.col.sobre').forEach(c => c.classList.remove('sobre'));
+  });
+  el.addEventListener('dragover', e => {
+    const c = e.target.closest && e.target.closest('.col'); if (!c || !arrastrando) return;
+    e.preventDefault();
+    $$('.col.sobre').forEach(x => { if (x !== c) x.classList.remove('sobre'); });
+    c.classList.add('sobre');
+  });
+  el.addEventListener('drop', e => {
+    const c = e.target.closest && e.target.closest('.col'); if (!c || !arrastrando) return;
+    e.preventDefault(); c.classList.remove('sobre');
+    const p = PEDIDOS.filter(q => q.id === arrastrando)[0], destino = c.dataset.col;
+    arrastrando = null;
+    if (p && destino && destino !== p.estado) cambiarEstado(p, destino);
+  });
 }
 function accionPedido(e) {
   const x = e.target.closest('[data-a]'); if (!x) return;
@@ -665,23 +714,20 @@ function vistaMas() {
     ['inventario','🏷️','Inventario','Stock, precios y fotos', true],
     ['equipo','🧑‍💼','Equipo','Actividad de empleados', true],
     ['rapidas','⚡','Respuestas rápidas','Mensajes guardados', true],
+    ['diseno','🎨','Diseño y marca','Logo, fondos y colores para todos', true],
     ['respaldo','💾','Respaldo ahora','Copia de la hoja en Drive', true],
-    ['tema','🎨','Tema', TEMAS[document.body.dataset.tema] || '', false],
+    ['modo','🌙','Modo ' + (Tema.modo() === 'claro' ? 'claro' : 'oscuro'),'Tu preferencia personal', 'perm'],
     ['sonido','🔔','Sonido', SONIDO ? 'Activado' : 'Apagado', false],
     ['salir','⎋','Cerrar sesión', ME.n, false]
-  ].filter(x => !x[4] || ADMIN);
+  ].filter(x => x[4] === true ? ADMIN : x[4] === 'perm' ? Tema.cfg().permitirModo : true);
   pintar('<div class="g g2">' + tiles.map(x => '<div class="card hv tile anim" data-t="' + x[0] + '"><div class="em">' + x[1] + '</div><div class="id" style="margin-top:6px">' + x[2] + '</div><div class="mut">' + esc(x[3]) + '</div></div>').join('') + '</div>');
   $$('[data-t]').forEach(x => {
     x.onclick = async () => {
       const t = x.dataset.t;
-      if (['pagos','ruta','inventario','equipo','rapidas'].indexOf(t) > -1) return mostrarTab(t);
+      if (['pagos','ruta','inventario','equipo','rapidas','diseno'].indexOf(t) > -1) return mostrarTab(t);
       if (t === 'salir') return cerrarSesion('');
+      if (t === 'modo') { Tema.setModo(Tema.modo() === 'claro' ? 'oscuro' : 'claro'); return vistaMas(); }
       if (t === 'sonido') { SONIDO = !SONIDO; try { localStorage.setItem('sonido', SONIDO ? '1' : '0'); } catch (e) {} if (SONIDO) ping(); return vistaMas(); }
-      if (t === 'tema') {
-        const r = await modal({ titulo: 'Tema', campos: [{ id: 't', label: 'Elige el estilo', tipo: 'select', opciones: Object.keys(TEMAS).map(k => [k, TEMAS[k]]), valor: document.body.dataset.tema }], ok: 'Aplicar' });
-        if (r) { tema(r.t); vistaMas(); }
-        return;
-      }
       if (t === 'respaldo') {
         const r = await modal({ titulo: 'Respaldo ahora', texto: 'Se guardará una copia completa de la hoja en tu Drive (se conservan las últimas 14).', ok: 'Hacer respaldo', sinFoco: true });
         if (!r) return;
@@ -840,9 +886,13 @@ setInterval(() => {
   TICK++;
   if (TAB === 'chats' && CHAT) pollChat(false);
   if (TICK % 3 === 0) cargarChats().catch(() => {});
+  if (TICK % 6 === 0) api('config').then(r => Tema.aplicar(r)).catch(() => {});
   if (TICK % 8 === 0) {
     if (TAB === 'inicio') (ADMIN ? vistaInicioAdmin(true) : vistaInicioOp(true)).catch(() => {});
     if (TAB === 'pedidos' && !(document.activeElement && /INPUT|SELECT/.test(document.activeElement.tagName)))
       api('pedidos').then(r => { if (TAB === 'pedidos' && !document.querySelector('.ov')) { PEDIDOS = r.pedidos; renderPedLista(); } }).catch(() => {});
   }
 }, 8000);
+
+/* Diseño global: tema.js ya aplicó la copia guardada; aquí se sincroniza con el servidor (también antes de entrar) */
+api('config').then(r => Tema.aplicar(r)).catch(() => {});

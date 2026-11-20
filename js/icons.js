@@ -65,7 +65,7 @@
     '🎯':'target', '📈':'trend', '📊':'bars', '💳':'card', '🏆':'award', '📍':'pin', '🔎':'search', '🤖':'bot',
     '🙋':'help', '←':'back', '‹':'chevl', '➤':'send', '⟳':'refresh', '☰':'list', '▦':'columns', '✕':'close',
     '＋':'plus', '📅':'calendar', '🏷':'tag', '🛠':'tool', '⭐':'star', '✨':'star', '📋':'clipboard', '🗺':'map',
-    '💾':'save', '🎨':'drop', '🔔':'bell', '👑':'crown', '🔘':'dot', '👋':'smile'
+    '💾':'save', '🎨':'drop', '🔔':'bell', '👑':'crown','🌙':'moon','🔘':'dot', '👋':'smile'
   };
 
   const keys = Object.keys(MAP).sort(function (a, b) { return b.length - a.length; });
