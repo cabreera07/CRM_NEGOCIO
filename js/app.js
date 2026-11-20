@@ -155,7 +155,8 @@ function animarContadores(quieto) {
 
 /* ================= Sesión y navegación ================= */
 function cerrarSesion(msg) {
-  TOKEN = ''; CHAT = null; PREV_SL = null;
+  TOKEN = ''; CHAT = null; PREV_SL = null; PERMS = []; SIM = null;
+  renderSimBar();
   try { sessionStorage.removeItem('tok'); } catch (e) {}
   if (typeof salirDiseno === 'function' && TAB === 'diseno') salirDiseno();
   $('#app').classList.add('hide'); $('#login').classList.remove('hide');
@@ -164,8 +165,12 @@ function cerrarSesion(msg) {
 }
 
 function armarNav() {
+  const vis = NAV.filter(n => n[0] === 'inicio' || n[0] === 'mas' ||
+    (n[0] === 'chats' && puede('chats.ver')) ||
+    (n[0] === 'pedidos' && puede('pedidos.ver')) ||
+    (n[0] === 'clientes' && puede('clientes.ver')));
   $('#nav').innerHTML = '<div id="navind"></div><div class="brand">' + Tema.logoHtml(40) + '</div>' +
-    NAV.map(n => '<button data-tab="' + n[0] + '"><span>' + n[1] + '<i id="b_' + n[0] + '" class="bdg hide">0</i></span>' + n[2] + '</button>').join('') +
+    vis.map(n => '<button data-tab="' + n[0] + '"><span>' + n[1] + '<i id="b_' + n[0] + '" class="bdg hide">0</i></span>' + n[2] + '</button>').join('') +
     '<div class="nf"><button id="nsalir"><span>⎋</span>Salir</button></div>';
   $$('#nav button[data-tab]').forEach(b => { b.onclick = () => mostrarTab(b.dataset.tab); });
   $('#nsalir').onclick = () => cerrarSesion('');
@@ -175,14 +180,16 @@ function badge(id, n) { const b = $('#b_' + id); if (b) { b.textContent = n; b.c
 
 async function arrancar() {
   const r = await api('init');
-  ME = r.ses; ADMIN = ME.r === 'admin'; ESTADOS = r.estados; RAPIDAS = r.rapidas || [];
+  ME = r.ses; PERMS = ME.perms || []; ADMIN = ME.j === 'admin'; SIM = null;
+  ESTADOS = r.estados; RAPIDAS = r.rapidas || [];
   if (r.diseno) Tema.aplicar(r.diseno);
   $('#login').classList.add('hide'); $('#app').classList.remove('hide');
-  Tema.modoLogin(false);
+  Tema.modoLogin(false); renderSimBar();
   $('#quien').textContent = (ADMIN ? '👑 ' : '') + ME.n;
   armarNav();
   mostrarTab('inicio');
 }
+
 $('#lg-ok').onclick = async () => {
   $('#lg-err').textContent = '';
   try {
@@ -207,12 +214,12 @@ async function mostrarTab(t, arg) {
   moverIndicador();
   Tema.seccion(base);
   const mainEl = $('#main'); mainEl.classList.remove('enter'); void mainEl.offsetWidth; mainEl.classList.add('enter');
-  $('#htitle').textContent = t === 'inicio' ? (ADMIN ? '⚡ Centro de mando' : '⚡ Mi turno') : (TITULOS[t] || '');
+  $('#htitle').textContent = t === 'inicio' ? (puede('dashboard.ver') ? '⚡ Centro de mando' : '⚡ Mi turno') : (TITULOS[t] || '');
   $('#hback').classList.toggle('hide', !SUB[t]);
   try {
     if (t === 'chats') { armarChats(); await cargarChats(); if (arg) await abrirChat(arg); else if (CHAT) pollChat(false); return; }
     pintar(skeleton());
-    if (t === 'inicio')     return ADMIN ? await vistaInicioAdmin() : await vistaInicioOp();
+    if (t === 'inicio')     return puede('dashboard.ver') ? await vistaInicioAdmin() : await vistaInicioOp();
     if (t === 'pedidos')    return await vistaPedidos();
     if (t === 'clientes')   return await vistaClientes();
     if (t === 'mas')        return vistaMas();
@@ -251,7 +258,11 @@ function accionAlerta(a) {
 function actualizarBadgeInicio() { badge('inicio', TORRE ? TORRE.alertas.filter(a => a.n === 'rojo').length : 0); }
 
 async function vistaInicioAdmin(quieto) {
-  const [d, t, e] = await Promise.all([api('dashboard', { periodo: PERIODO }), api('torre'), api('equipo')]);
+  const [d, t, e] = await Promise.all([
+  api('dashboard', { periodo: PERIODO }),
+  api('torre'),
+  puede('equipo.ver') ? api('equipo') : Promise.resolve({ equipo: [] })
+]);
   if (TAB !== 'inicio') return;
   TORRE = t; actualizarBadgeInicio();
   const k = d.kpi;
@@ -412,6 +423,10 @@ function renderHead() {
 function renderAviso() {
   const a = $('#aviso'); if (!a || !CHAT) return;
   const ab = ventanaAbierta();
+  const sinEnv = !puede('chats.enviar');
+$('#txt').disabled = !ab || sinEnv; $('#send').disabled = !ab || sinEnv;
+if ($('#cmodo')) $('#cmodo').classList.toggle('hide', !puede('chats.modo'));
+if (sinEnv) { a.className = 'aviso'; a.textContent = 'Modo solo lectura: no tienes permiso para enviar mensajes.'; return; }
   $('#txt').disabled = !ab; $('#send').disabled = !ab;
   if (!ab) { a.className = 'aviso red'; a.textContent = '⏰ Pasaron más de 24 h desde el último mensaje del cliente. WhatsApp no permite enviar texto libre; solo plantillas aprobadas.'; }
   else if (CHAT.modo !== 'HUMANO') { a.className = 'aviso'; a.textContent = '🤖 El bot está atendiendo. Si respondes, tomas la conversación y el bot se calla.'; }
@@ -633,6 +648,7 @@ function accionPedido(e) {
   if (x.dataset.a === 'etq') etiqueta(p);
 }
 async function elegirEstado(p) {
+    const opts = ESTADOS.filter(e => e !== p.estado && (e !== 'CANCELADO' || puede('pedidos.cancelar')) && (!(p.estado === 'PENDIENTE_PAGO' && e === 'CONFIRMADO') || puede('pagos.verificar')));
   const r = await modal({ titulo: 'Cambiar estado', texto: 'Pedido ' + p.id + ' · ahora está en ' + p.estado.replace('_', ' '),
     campos: [{ id: 'estado', label: 'Nuevo estado', tipo: 'select', opciones: ESTADOS.filter(e => e !== p.estado) }], ok: 'Continuar' });
   if (r) cambiarEstado(p, r.estado);
@@ -708,18 +724,19 @@ function renderCli() {
 /* ================= MÁS (herramientas) ================= */
 function vistaMas() {
   const c = TORRE ? TORRE.cnt : {};
+  const verEq = puede('equipo.ver') || puede('equipo.gestionar') || puede('permisos.delegar') || puede('roles.editar');
   const tiles = [
-    ['pagos','📸','Verificar pagos', c.comprobantes ? c.comprobantes + ' por revisar' : 'Comprobantes de clientes', false],
-    ['ruta','🗺️','Ruta del día','Entregas por zona', false],
-    ['inventario','🏷️','Inventario','Stock, precios y fotos', true],
-    ['equipo','🧑‍💼','Equipo','Actividad de empleados', true],
-    ['rapidas','⚡','Respuestas rápidas','Mensajes guardados', true],
-    ['diseno','🎨','Diseño y marca','Logo, fondos y colores para todos', true],
-    ['respaldo','💾','Respaldo ahora','Copia de la hoja en Drive', true],
-    ['modo','🌙','Modo ' + (Tema.modo() === 'claro' ? 'claro' : 'oscuro'),'Tu preferencia personal', 'perm'],
-    ['sonido','🔔','Sonido', SONIDO ? 'Activado' : 'Apagado', false],
-    ['salir','⎋','Cerrar sesión', ME.n, false]
-  ].filter(x => x[4] === true ? ADMIN : x[4] === 'perm' ? Tema.cfg().permitirModo : true);
+    ['pagos','📸','Verificar pagos', c.comprobantes ? c.comprobantes + ' por revisar' : 'Comprobantes de clientes', puede('pagos.verificar')],
+    ['ruta','🗺️','Ruta del día','Entregas por zona', puede('ruta.ver')],
+    ['inventario','🏷️','Inventario', puede('inventario.editar') ? 'Stock, precios y fotos' : 'Consulta de catálogo', puede('inventario.ver')],
+    ['equipo','🧑‍💼','Equipo y permisos','Jerarquías, perfiles y delegación', verEq],
+    ['rapidas','⚡','Respuestas rápidas','Mensajes guardados', puede('rapidas.editar')],
+    ['diseno','🎨','Diseño y marca','Logo, fondos y colores para todos', puede('diseno.editar')],
+    ['respaldo','💾','Respaldo ahora','Copia de la hoja en Drive', puede('respaldo.ejecutar')],
+    ['modo','🌙','Modo ' + (Tema.modo() === 'claro' ? 'claro' : 'oscuro'),'Tu preferencia personal', Tema.cfg().permitirModo],
+    ['sonido','🔔','Sonido', SONIDO ? 'Activado' : 'Apagado', true],
+    ['salir','⎋','Cerrar sesión', rolEfectivo().n, true]
+  ].filter(x => x[4]);
   pintar('<div class="g g2">' + tiles.map(x => '<div class="card hv tile anim" data-t="' + x[0] + '"><div class="em">' + x[1] + '</div><div class="id" style="margin-top:6px">' + x[2] + '</div><div class="mut">' + esc(x[3]) + '</div></div>').join('') + '</div>');
   $$('[data-t]').forEach(x => {
     x.onclick = async () => {
@@ -863,13 +880,7 @@ async function nuevoProducto() {
 }
 
 /* ================= EQUIPO y RÁPIDAS (admin) ================= */
-async function vistaEquipo() {
-  const r = await api('equipo');
-  if (TAB !== 'equipo') return;
-  pintar('<div class="g g3">' + r.equipo.map(m => '<div class="card hv"><div class="top" style="align-items:center"><div style="display:flex;gap:10px;align-items:center">' + avatar(m.n) + '<div><div class="id">' + esc(m.n) + '</div><div class="mut">@' + esc(m.u) + '</div></div></div><span class="badge ' + (m.r === 'admin' ? 'b-CONFIRMADO' : '') + '">' + (m.r === 'admin' ? 'Administrador' : 'Operador') + '</span></div>' +
-    '<p class="v" style="margin-top:10px">' + m.msgs + '</p><p class="l">mensajes enviados desde el panel' + (m.ult ? ' · último ' + esc(m.ult) : '') + '</p></div>').join('') + '</div>' +
-    '<p class="mut">Para agregar o quitar empleados, edita la propiedad EMPLEADOS en Apps Script (Configuración del proyecto → Propiedades del script).</p>');
-}
+
 function vistaRapidas() {
   pintar('<div class="card"><b>⚡ Respuestas rápidas</b><p class="mut" style="margin:4px 0 10px">Una por línea (máximo 15). Aparecen sobre la caja de mensaje en cada chat.</p><textarea id="rtxt" rows="10">' + esc(RAPIDAS.join('\n')) + '</textarea><div class="row"><button class="btn" id="rguardar">Guardar</button></div></div>');
   $('#rguardar').onclick = async () => {
@@ -884,12 +895,21 @@ function vistaRapidas() {
 setInterval(() => {
   if (!TOKEN || document.hidden || document.querySelector('.ov')) return;
   TICK++;
-  if (TAB === 'chats' && CHAT) pollChat(false);
-  if (TICK % 3 === 0) cargarChats().catch(() => {});
-  if (TICK % 6 === 0) api('config').then(r => Tema.aplicar(r)).catch(() => {});
+  if (TAB === 'chats' && CHAT && puede('chats.ver')) pollChat(false);
+  if (TICK % 3 === 0 && puede('chats.ver')) cargarChats().catch(() => {});
+  if (TICK % 6 === 0) {
+    api('config').then(r => Tema.aplicar(r)).catch(() => {});
+    api('mi_sesion').then(r => {
+      if (PERMS_VER && r.version !== PERMS_VER) {
+        ME = r.ses; PERMS = ME.perms || []; ADMIN = ME.j === 'admin';
+        if (!SIM) { armarNav(); toast('Tus permisos fueron actualizados'); }
+      }
+      PERMS_VER = r.version;
+    }).catch(() => {});
+  }
   if (TICK % 8 === 0) {
-    if (TAB === 'inicio') (ADMIN ? vistaInicioAdmin(true) : vistaInicioOp(true)).catch(() => {});
-    if (TAB === 'pedidos' && !(document.activeElement && /INPUT|SELECT/.test(document.activeElement.tagName)))
+    if (TAB === 'inicio') (puede('dashboard.ver') ? vistaInicioAdmin(true) : vistaInicioOp(true)).catch(() => {});
+    if (TAB === 'pedidos' && puede('pedidos.ver') && !(document.activeElement && /INPUT|SELECT/.test(document.activeElement.tagName)))
       api('pedidos').then(r => { if (TAB === 'pedidos' && !document.querySelector('.ov')) { PEDIDOS = r.pedidos; renderPedLista(); } }).catch(() => {});
   }
 }, 8000);

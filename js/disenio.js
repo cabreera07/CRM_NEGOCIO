@@ -2,7 +2,7 @@
 let DI = null, DI_DIRTY = false, DI_SEC = 'inicio', DI_EDIT = null;
 
 async function vistaDiseno() {
-  if (!ADMIN) { pintar('<div class="empty">Solo el administrador puede cambiar el diseño.</div>'); return; }
+  if (!puede('diseno.editar')) { pintar('<div class="empty">Solo el administrador puede cambiar el diseño.</div>'); return; }
   const r = await api('config');
   if (TAB !== 'diseno') return;
   Tema.aplicar(r);
