@@ -63,8 +63,7 @@ const Tema = (function () {
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
   }
   function modoEf(cfg) {
-    let p = '';
-    try { p = localStorage.getItem('modo') || ''; } catch (e) {}
+    const p = pref('modo');
     return (cfg.permitirModo && (p === 'claro' || p === 'oscuro')) ? p : cfg.modo;
   }
   const urlImg = (id, w) => local[id] || ('https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w' + w);
@@ -129,14 +128,29 @@ const Tema = (function () {
     }
   }
 
-  function pref(k) { try { return JSON.parse(localStorage.getItem('pref_v1') || '{}')[k]; } catch (e) { return undefined; } }
-  function setPref(k, v) {
-    try {
-      const o = JSON.parse(localStorage.getItem('pref_v1') || '{}');
+  let uid = '', onPrefs = null;
+  const PK = () => 'crm_prefs_' + uid;
+  function leerPrefs() { try { return JSON.parse(localStorage.getItem(PK()) || '{}') || {}; } catch (e) { return {}; } }
+  function guardarPrefs(o) { try { localStorage.setItem(PK(), JSON.stringify(o)); } catch (e) {} }
+  function pref(k) { return leerPrefs()[k]; }
+  function emitir(o) { if (onPrefs && uid) onPrefs(o); }
+  function setPrefs(cambios) {
+    const o = leerPrefs();
+    Object.keys(cambios).forEach(k => {
+      const v = cambios[k];
       if (v === '' || v === null || v === undefined) delete o[k]; else o[k] = v;
-      localStorage.setItem('pref_v1', JSON.stringify(o));
-    } catch (e) {}
-    pintar(cfgActual());
+    });
+    o._ts = Date.now(); guardarPrefs(o); pintar(cfgActual()); emitir(o);
+  }
+  function setPref(k, v) { const c = {}; c[k] = v; setPrefs(c); }
+  function limpiarPrefs() { const o = { _ts: Date.now() }; guardarPrefs(o); pintar(cfgActual()); emitir(o); }
+  function setUser(u) { uid = String(u || ''); pintar(cfgActual()); }
+  // Gana la copia más reciente (local vs. hoja Preferencias)
+  function mergeRemote(r) {
+    const l = leerPrefs(), tl = Number(l._ts) || 0, tr = Number(r && r._ts) || 0;
+    if (tr > tl) { guardarPrefs(r); pintar(cfgActual()); return 'remoto'; }
+    if (tl > tr && tl > 0) { emitir(l); return 'local'; }
+    return 'igual';
   }
 
   function pintar(cfg) {
@@ -144,7 +158,8 @@ const Tema = (function () {
     b.dataset.modo = modo; b.dataset.anim = cfg.anim;
     b.dataset.neon = cfg.neon ? '1' : '0';
     b.dataset.dens = pref('densidad') || cfg.densidad || 'comoda';
-    const ac = cfg.acento === 'custom' ? [cfg.colorA, cfg.colorB] : (ACENTOS[cfg.acento] || ACENTOS.azul);
+    const pa = pref('acento');
+    const ac = (pa && ACENTOS[pa]) ? ACENTOS[pa] : (cfg.acento === 'custom' ? [cfg.colorA, cfg.colorB] : (ACENTOS[cfg.acento] || ACENTOS.azul));
     const a = rgb(ac[0]);
     s.setProperty('--pri', ac[0]); s.setProperty('--pri2', ac[1]); s.setProperty('--pri-rgb', a.join(','));
     s.setProperty('--glow', 'rgba(' + a.join(',') + ',' + (cfg.neon ? '.30' : '.10') + ')');
@@ -177,8 +192,8 @@ const Tema = (function () {
   const c = cfgActual();
   ponerFondo(forzado || (b ? c.fondoLogin : fondoDe(c, sec)), c);
 }
-  function setModo(m) { try { localStorage.setItem('modo', m); } catch (e) {} pintar(cfgActual()); }
-
+    function setModo(m) { setPref('modo', m); }
+    
   // Reflejo que sigue al cursor en las tarjetas de cristal
   document.addEventListener('pointermove', function (e) {
     const c = e.target.closest && e.target.closest('.card');
@@ -194,6 +209,8 @@ const Tema = (function () {
   pintar(res.cfg);
 
   return {
+        setPrefs: setPrefs, limpiarPrefs: limpiarPrefs, setUser: setUser, mergeRemote: mergeRemote,
+    alGuardar: function (f) { onPrefs = f; },
     pref: pref, setPref: setPref,
     DEF: DEF, ACENTOS: ACENTOS, PRESETS: PRESETS, FUENTES: FUENTES, SECCIONES: SEC,
     clon: clon, aplicar: aplicar, previa: previa, revertir: revertir, seccion: seccion, modoLogin: modoLogin, setModo: setModo,

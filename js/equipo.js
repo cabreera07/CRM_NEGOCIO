@@ -5,6 +5,7 @@ const JER_NOM = { admin: 'Administrador', supervisor: 'Supervisor', operario: 'O
 const JER_COL = { admin: 'b-CONFIRMADO', supervisor: 'b-DESPACHADO', operario: 'b-ENTREGADO' };
 
 function esAdminReal() { return !!(ME && ME.j === 'admin'); }
+function esAdminEf() { const r = rolEfectivo(); return !!(r && r.j === 'admin'); }
 function rolEfectivo() { return SIM || ME; }
 function puede(perm) {
   if (SIM) return SIM.j === 'admin' || SIM.perms.indexOf(perm) > -1;
@@ -58,6 +59,7 @@ function agruparCat(cat) {
 }
 
 async function vistaEquipo() {
+  if (!esAdminEf()) { pintar('<div class="empty">Solo el administrador puede ver esta sección.</div>'); return; }
   EQ_DATA = await api('equipo');
   if (TAB !== 'equipo') return;
   renderEquipo();

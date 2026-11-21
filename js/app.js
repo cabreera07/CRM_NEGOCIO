@@ -3,8 +3,10 @@ const SIG_TXT = { PENDIENTE_PAGO:'✅ Confirmar pago', CONFIRMADO:'🛠️ Prepa
 const ESTADO_COL = { PENDIENTE_PAGO:'#ffc247', CONFIRMADO:'#22d3ff', PREPARANDO:'#3b82f6', EMPACADO:'#6366f1', DESPACHADO:'#a78bfa', EN_RUTA:'#c084fc', ENTREGADO:'#2ef2a5', INCIDENCIA:'#ff9f43', CANCELADO:'#ff5c8a' };
 const ICON = { photo:'📸', clock:'⏰', truck:'🚚', 'message-circle':'💬', package:'📦' };
 const NAV = [['inicio','🏠','Inicio'],['chats','💬','Chats'],['pedidos','📦','Pedidos'],['clientes','👥','Clientes'],['mas','🧰','Más']];
-const SUB = { inventario:1, pagos:1, ruta:1, equipo:1, rapidas:1, diseno:1 };
-const TITULOS = { chats:'Chats', pedidos:'Pedidos', clientes:'Clientes', mas:'Herramientas', inventario:'Inventario', pagos:'Verificar pagos', ruta:'Ruta del día', equipo:'Equipo', rapidas:'Respuestas rápidas', diseno:'Diseño y marca' };
+const SUB = { inventario:1, pagos:1, ruta:1, equipo:1, rapidas:1, diseno:1, preferencias:1, configuracion:1 };
+const TITULOS = { chats:'Chats', pedidos:'Pedidos', clientes:'Clientes', mas:'Herramientas', inventario:'Inventario', pagos:'Verificar pagos', ruta:'Ruta del día', equipo:'Equipo y permisos', rapidas:'Respuestas rápidas', diseno:'Diseño y marca', preferencias:'Mis preferencias', configuracion:'Configuración' };
+const RUTA_DE = { inicio:'inicio', chats:'chats', pedidos:'pedidos', clientes:'clientes', mas:'mas', preferencias:'preferencias', configuracion:'configuracion', equipo:'configuracion/equipo', diseno:'configuracion/diseno', inventario:'inventario', pagos:'pagos', ruta:'ruta', rapidas:'rapidas' };
+const TAB_DE = {}; Object.keys(RUTA_DE).forEach(k => { TAB_DE[RUTA_DE[k]] = k; });
 const PERIODOS = [['hoy','Hoy'],['7d','7 días'],['30d','30 días'],['mes','Este mes']];
 const TEMAS = { azul:'Azul neón', violeta:'Violeta neón', claro:'Claro' };
 
@@ -285,18 +287,26 @@ function animarContadores(quieto) {
 
 /* ================= Sesión y navegación ================= */
 function cerrarSesion(msg) {
-  limpiarCacheDash();
-  TOKEN = ''; CHAT = null; PREV_SL = null; PERMS = []; SIM = null;
+  TOKEN = ''; CHAT = null; PREV_SL = null; PERMS = []; SIM = null; ME = null;
+  PEDIDOS = []; CLIENTES = []; PRODS = []; CHATS = []; EQ_DATA = null;
   renderSimBar();
   try { sessionStorage.removeItem('tok'); } catch (e) {}
   if (typeof salirDiseno === 'function' && TAB === 'diseno') salirDiseno();
+  Tema.setUser('');
   $('#app').classList.add('hide'); $('#login').classList.remove('hide');
   Tema.modoLogin(true);
   $('#lg-err').textContent = msg || ''; $('#pin').value = '';
 }
 
-  PF.vista = P('vistaPedidos'); CF.vista = P('vistaClientes'); IF.vista = P('vistaInventario');
+function aplicarPrefsUsuario() {
+  PF.vista = P('vistaPedidos') || 'lista';
+  CF.vista = P('vistaClientes') || 'tarjetas';
+  IF.vista = P('vistaInventario') || 'tarjetas';
+  PERIODO = P('periodo') || 'hoy';
   actualizarReloj();
+}
+
+
 
 function armarNav() {
   const vis = NAV.filter(n => n[0] === 'inicio' || n[0] === 'mas' ||
@@ -316,12 +326,15 @@ async function arrancar() {
   const r = await api('init');
   ME = r.ses; PERMS = ME.perms || []; ADMIN = ME.j === 'admin'; SIM = null;
   ESTADOS = r.estados; RAPIDAS = r.rapidas || [];
+  Tema.setUser(ME.u);
   if (r.diseno) Tema.aplicar(r.diseno);
+  Tema.mergeRemote(r.prefs || {});
+  aplicarPrefsUsuario();
   $('#login').classList.add('hide'); $('#app').classList.remove('hide');
   Tema.modoLogin(false); renderSimBar();
   $('#quien').textContent = (ADMIN ? '👑 ' : '') + ME.n;
   armarNav();
-  mostrarTab('inicio');
+  rutear();
 }
 
 $('#lg-ok').onclick = async () => {
@@ -334,12 +347,57 @@ $('#lg-ok').onclick = async () => {
   } catch (e) { TOKEN = ''; $('#lg-err').textContent = e.message; }
 };
 $('#pin').addEventListener('keydown', e => { if (e.key === 'Enter') $('#lg-ok').click(); });
-$('#hback').onclick = () => mostrarTab('mas');
+$('#hback').onclick = () => mostrarTab(TAB === 'equipo' || TAB === 'diseno' ? 'configuracion' : 'mas');
 $('#refrescar').onclick = () => { if (TAB === 'chats') { cargarChats().catch(() => {}); pollChat(true); } else mostrarTab(TAB); };
 try { TOKEN = sessionStorage.getItem('tok') || ''; } catch (e) {}
 if (TOKEN) arrancar().catch(() => {});
 
-async function mostrarTab(t, arg) {
+/* ================= Router por hash ================= */
+const hashDe = (t, arg) => '#/' + (RUTA_DE[t] || 'inicio') + (t === 'chats' && arg ? '/' + arg : '');
+
+function leerHash() {
+  const p = (location.hash || '').replace(/^#\/?/, '').split('?')[0].replace(/\/+$/, '');
+  const seg = p.split('/');
+  if (seg[0] === 'chats') return { tab: 'chats', arg: seg[1] || '' };
+  return { tab: TAB_DE[p] || null, arg: '' };
+}
+
+function permisoTab(t) {
+  switch (t) {
+    case 'chats':      return puede('chats.ver');
+    case 'pedidos':    return puede('pedidos.ver');
+    case 'clientes':   return puede('clientes.ver');
+    case 'inventario': return puede('inventario.ver');
+    case 'pagos':      return puede('pagos.verificar');
+    case 'ruta':       return puede('ruta.ver');
+    case 'rapidas':    return puede('rapidas.editar');
+    case 'configuracion': case 'equipo': case 'diseno': return esAdminEf();
+    default: return true;
+  }
+}
+
+// Navegar = cambiar el hash. Si ya estamos en ese hash, solo se vuelve a pintar (refrescar).
+function mostrarTab(t, arg) {
+  if (!TOKEN) return;
+  const h = hashDe(t, arg);
+  if (location.hash !== h) { location.hash = h; return; }
+  return renderTab(t, arg);
+}
+
+function rutear() {
+  if (!TOKEN || !ME) return;
+  const r = leerHash();
+  if (!r.tab) { try { history.replaceState(null, '', hashDe('inicio')); } catch (e) {} return renderTab('inicio'); }
+  if (!permisoTab(r.tab)) {
+    toast('No tienes acceso a esa sección.', 'warn');
+    try { history.replaceState(null, '', hashDe('inicio')); } catch (e) {}
+    return renderTab('inicio');
+  }
+  return renderTab(r.tab, r.arg);
+}
+window.addEventListener('hashchange', rutear);
+
+async function renderTab(t, arg) {
   const prev = TAB;
   if (prev === 'diseno' && t !== 'diseno') salirDiseno();
   TAB = t;
@@ -353,16 +411,18 @@ async function mostrarTab(t, arg) {
   try {
     if (t === 'chats') { armarChats(); await cargarChats(); if (arg) await abrirChat(arg); else if (CHAT) pollChat(false); return; }
     pintar(skeleton());
-    if (t === 'inicio')     return puede('dashboard.ver') ? await vistaInicioAdmin() : await vistaInicioOp();
-    if (t === 'pedidos')    return await vistaPedidos();
-    if (t === 'clientes')   return await vistaClientes();
-    if (t === 'mas')        return vistaMas();
-    if (t === 'inventario') return await vistaInventario();
-    if (t === 'pagos')      return await vistaPagos();
-    if (t === 'ruta')       return await vistaRuta();
-    if (t === 'equipo')     return await vistaEquipo();
-    if (t === 'rapidas')    return vistaRapidas();
-    if (t === 'diseno')     return await vistaDiseno();
+    if (t === 'inicio')        return puede('dashboard.ver') ? await vistaInicioAdmin() : await vistaInicioOp();
+    if (t === 'pedidos')       return await vistaPedidos();
+    if (t === 'clientes')      return await vistaClientes();
+    if (t === 'mas')           return vistaMas();
+    if (t === 'inventario')    return await vistaInventario();
+    if (t === 'pagos')         return await vistaPagos();
+    if (t === 'ruta')          return await vistaRuta();
+    if (t === 'equipo')        return await vistaEquipo();
+    if (t === 'rapidas')       return vistaRapidas();
+    if (t === 'diseno')        return await vistaDiseno();
+    if (t === 'preferencias')  return vistaPrefs();
+    if (t === 'configuracion') return vistaConfig();
   } catch (e) { if (TAB === t && TOKEN) pintar('<div class="empty">' + esc(e.message) + '</div>'); }
 }
 
@@ -377,12 +437,22 @@ window.addEventListener('resize', moverIndicador);
 /* ================= INICIO ================= */
 function htmlTorre(t) {
   const it = t.alertas;
-  return '<div class="card torre' + (it.length ? ' hot' : '') + ' anim"><div class="top"><b>🚨 Torre de control</b><span class="mut">' + (it.length ? it.length + ' pendiente(s)' : 'Todo en orden') + '</span></div>' +
-    (it.length ? it.map((a, i) => '<div class="al ' + a.n + '" data-al="' + i + '"><div class="ic">' + (ICON[a.ic] || '•') + '</div><div class="cb"><div class="nm">' + esc(a.t) + '</div><div class="mut nm">' + esc(a.d) + '</div></div><span>›</span></div>').join('')
-                : '<div class="empty" style="padding:18px 0">Nada urgente por ahora ✨</div>') + '</div>';
+  return '<div class="card anim"><div class="top"><b>🚨 Torre de control</b><span class="mut">' + (it.length ? it.length + ' pendiente(s)' : 'Todo en orden') + '</span></div>' +
+    (it.length ? it.map((a, i) => {
+      const ped = a.id ? { id: a.id, estado: a.est, nombre: a.nom, tel: a.tel } : null;
+      return '<div class="al ' + a.n + '" data-al="' + i + '"><div class="ic">' + (ICON[a.ic] || '•') + '</div><div class="cb"><div class="nm">' + esc(a.t) + '</div><div class="mut nm">' + esc(a.d) + '</div></div>' +
+        (ped ? '<div class="al-acc">' + (a.tel && puede('chats.ver') ? '<button class="btn xs" data-ach="' + esc(a.tel) + '">💬 Chat</button>' : '') + ctrlEstado(ped) + '</div>' : '<span>›</span>') + '</div>';
+    }).join('') : '<div class="empty" style="padding:18px 0">Nada urgente por ahora ✨</div>') + '</div>';
 }
 function ligarTorre() {
-  $$('[data-al]').forEach(x => { x.onclick = () => accionAlerta(TORRE.alertas[x.dataset.al].a); });
+  $$('[data-al]').forEach(x => {
+    x.onclick = e => {
+      const b = e.target.closest('[data-ach]');
+      if (b) { mostrarTab('chats', b.dataset.ach); return; }
+      if (e.target.closest('select')) return;
+      accionAlerta(TORRE.alertas[x.dataset.al].a);
+    };
+  });
 }
 function accionAlerta(a) {
   if (a.t === 'chat') mostrarTab('chats', a.tel);
@@ -621,7 +691,7 @@ function renderInfo() {
   if (!CHAT.info) { el.textContent = 'Cargando…'; return; }
   const i = CHAT.info;
   el.innerHTML = 'Compras recibidas: <b>' + esc(i.compras) + '</b> · Puntos: <b>' + esc(i.puntos) + '</b> · En proceso: <b>' + esc(i.pend) + '</b>' +
-    (CHAT.pedidos.length ? '<div style="margin-top:8px">' + CHAT.pedidos.map(p => '<div class="top" style="padding:4px 0"><span>' + esc(p.id) + ' · ' + esc(p.total) + '</span><span class="badge b-' + esc(p.estado) + '">' + esc(p.estado.replace('_', ' ')) + '</span></div>').join('') + '</div><div class="row"><button class="btn sec sm" id="verped">Ver pedidos de este cliente</button></div>' : '<div style="margin-top:6px">Sin pedidos todavía.</div>');
+    (CHAT.pedidos.length ? '<div style="margin-top:8px">' + CHAT.pedidos.map(p => '<div class="top" style="padding:4px 0;align-items:center;gap:8px"><span>' + esc(p.id) + ' · ' + esc(p.total) + '</span><span style="display:flex;gap:6px;align-items:center"><span class="badge b-' + esc(p.estado) + '">' + esc(p.estado.replace('_', ' ')) + '</span>' + ctrlEstado({ id: p.id, estado: p.estado, nombre: CHAT.nombre, tel: CHAT.tel }) + '</span></div>').join('') + '</div><div class="row"><button class="btn xs" id="verped">Ver pedidos de este cliente</button></div>' : '<div style="margin-top:6px">Sin pedidos todavía.</div>');
   const b = $('#verped'); if (b) b.onclick = () => { PF.q = CHAT.tel; PF.estado = 'todos'; mostrarTab('pedidos'); };
 }
 async function pollChat(completo) {
@@ -750,18 +820,7 @@ function tablaPedidos(lista) {
         '<button class="btn sec sm" data-a="otro" data-id="' + id + '">⋯</button><button class="btn sec sm" data-a="chat" data-id="' + id + '">💬</button></td></tr>';
     }).join('') + '</tbody></table></div>';
 }
-function cardPedido(p) {
-  const sig = FLUJO[p.estado], id = esc(p.id);
-  return '<div class="card hv"><div class="top"><div><div class="id">' + id + '</div><div class="mut">' + esc(p.fecha) + ' · ' + esc(p.nombre || 'Sin nombre') + '</div></div><span class="badge b-' + esc(p.estado) + '">' + esc(p.estado.replace('_', ' ')) + '</span></div>' +
-    '<div class="prods">' + esc(p.productos.split(' | ').join('\n')) + '</div><div class="tot">' + esc(p.total) + '</div>' +
-    '<div class="mut">' + esc(p.pago) + (p.descuento ? ' · Desc. ' + esc(p.descuento) : '') + '</div>' +
-    '<div class="mut" style="margin-top:6px">📍 ' + esc(p.muni) + (p.zona ? ', zona ' + esc(p.zona) : '') + ', ' + esc(p.depto) + '<br>🏠 ' + esc(p.dir) + '</div>' +
-    (p.guia ? '<div class="mut">🚚 ' + esc(p.transp) + ' · Guía ' + esc(p.guia) + '</div>' : '') +
-    (p.comprobante && p.estado === 'PENDIENTE_PAGO' ? '<div class="warn">📸 Comprobante recibido ' + esc(p.comprobante) + '</div>' : '') +
-    '<div class="row">' + (sig ? '<button class="btn" data-a="sig" data-id="' + id + '">' + SIG_TXT[p.estado] + '</button>' : '') + '<button class="btn sec" data-a="otro" data-id="' + id + '">Otro estado</button></div>' +
-    '<div class="row">' + ((p.estado === 'PENDIENTE_PAGO' || p.pago.indexOf('Zigi') > -1) ? '<button class="btn sec" data-a="link" data-id="' + id + '">💳 ' + (p.link ? 'Reenviar link' : 'Enviar link') + '</button>' : '') +
-    '<button class="btn sec" data-a="chat" data-id="' + id + '">💬 Chat</button><button class="btn sec" data-a="etq" data-id="' + id + '">🏷️ Etiqueta</button></div></div>';
-}
+
 function tableroHtml(lista) {
   return '<div class="board">' + COLS.map(e => {
     const items = lista.filter(p => p.estado === e);
@@ -806,11 +865,79 @@ function accionPedido(e) {
   if (x.dataset.a === 'chat') mostrarTab('chats', p.tel);
   if (x.dataset.a === 'etq') etiqueta(p);
 }
-async function elegirEstado(p) {
-  const opts = ESTADOS.filter(e => e !== p.estado && (e !== 'CANCELADO' || puede('pedidos.cancelar')) && (!(p.estado === 'PENDIENTE_PAGO' && e === 'CONFIRMADO') || puede('pagos.verificar')));
-  const r = await modal({ titulo: 'Cambiar estado', texto: 'Pedido ' + p.id + ' · ahora está en ' + p.estado.replace('_', ' '),
-    campos: [{ id: 'estado', label: 'Nuevo estado', tipo: 'select', opciones: opts }], ok: 'Continuar' });
-  if (r) cambiarEstado(p, r.estado);
+function vistaMas() {
+  const c = TORRE ? TORRE.cnt : {};
+  const tiles = [
+    ['pagos','📸','Verificar pagos', c.comprobantes ? c.comprobantes + ' por revisar' : 'Comprobantes de clientes', puede('pagos.verificar')],
+    ['ruta','🗺️','Ruta del día','Entregas por zona', puede('ruta.ver')],
+    ['inventario','🏷️','Inventario', puede('inventario.editar') ? 'Stock, precios y fotos' : 'Consulta de catálogo', puede('inventario.ver')],
+    ['rapidas','⚡','Respuestas rápidas','Mensajes guardados', puede('rapidas.editar')],
+    ['configuracion','🧰','Configuración','Equipo, diseño y respaldo (admin)', esAdminEf()],
+    ['preferencias','👤','Mis preferencias','Vistas, reloj, saludo y tema', true],
+    ['modo','🌙','Modo ' + (Tema.modo() === 'claro' ? 'claro' : 'oscuro'),'Solo para ti', Tema.cfg().permitirModo],
+    ['sonido','🔔','Sonido', SONIDO ? 'Activado' : 'Apagado', true],
+    ['salir','⎋','Cerrar sesión', rolEfectivo().n, true]
+  ].filter(x => x[4]);
+  pintar('<div class="g g2">' + tiles.map(x => '<div class="card hv tile anim" data-t="' + x[0] + '"><div class="em">' + x[1] + '</div><div class="id" style="margin-top:6px">' + x[2] + '</div><div class="mut">' + esc(x[3]) + '</div></div>').join('') + '</div>');
+  $$('[data-t]').forEach(x => {
+    x.onclick = () => {
+      const t = x.dataset.t;
+      if (['pagos','ruta','inventario','rapidas','configuracion','preferencias'].indexOf(t) > -1) return mostrarTab(t);
+      if (t === 'salir') return pedirSalir();
+      if (t === 'modo') { Tema.setModo(Tema.modo() === 'claro' ? 'oscuro' : 'claro'); return vistaMas(); }
+      if (t === 'sonido') { SONIDO = !SONIDO; try { localStorage.setItem('sonido', SONIDO ? '1' : '0'); } catch (e) {} if (SONIDO) ping(); return vistaMas(); }
+    };
+  });
+}
+
+async function respaldoAhora() {
+  const r = await modal({ titulo: 'Respaldo ahora', texto: 'Se guardará una copia completa de la hoja en tu Drive (se conservan las últimas 14).', ok: 'Hacer respaldo', sinFoco: true });
+  if (!r) return;
+  busy(true);
+  try { await api('respaldo'); toast('💾 Respaldo listo en Drive'); } catch (e) { toast(e.message, 'err'); }
+  busy(false);
+}
+
+function vistaConfig() {
+  if (!esAdminEf()) { pintar('<div class="empty">Solo el administrador puede ver la configuración.</div>'); return; }
+  const tiles = [
+    ['equipo','🧑‍💼','Equipo y permisos','Usuarios, perfiles y delegación'],
+    ['diseno','🎨','Diseño y marca','Logo, fondos y colores para todos'],
+    ['respaldo','💾','Respaldo ahora','Copia de la hoja en Drive']
+  ];
+  pintar('<p class="mut" style="margin-bottom:12px">Estos ajustes afectan a todo el equipo. Tus gustos personales están en “Mis preferencias”.</p><div class="g g2">' +
+    tiles.map(x => '<div class="card hv tile anim" data-c="' + x[0] + '"><div class="em">' + x[1] + '</div><div class="id" style="margin-top:6px">' + x[2] + '</div><div class="mut">' + x[3] + '</div></div>').join('') + '</div>');
+  $$('[data-c]').forEach(x => { x.onclick = () => { if (x.dataset.c === 'respaldo') respaldoAhora(); else mostrarTab(x.dataset.c); }; });
+}
+
+function vistaPrefs() {
+  const bs = k => { const v = Tema.pref(k); return v === true ? '1' : (v === false ? '0' : ''); };
+  const pre = [['', 'Predeterminado']];
+  const sel = (k, label, ops, val) => '<label>' + label + '<select data-pk="' + k + '">' + pre.concat(ops).map(o => '<option value="' + esc(o[0]) + '"' + (String(o[0]) === String(val) ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select></label>';
+  const mo = [['1', 'Mostrar'], ['0', 'Ocultar']];
+  const acentos = Object.keys(Tema.ACENTOS).map(k => [k, k.charAt(0).toUpperCase() + k.slice(1)]);
+  pintar('<div class="card anim" id="prefs-w"><b>Mis preferencias</b>' +
+    '<p class="mut" style="margin:4px 0 8px">Solo te afectan a ti. Se guardan en tu usuario y te acompañan en cualquier computadora.</p>' +
+    '<div class="fgrid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">' +
+      sel('vistaPedidos', 'Vista de pedidos', [['lista', 'Lista'], ['tablero', 'Tablero'], ['tabla', 'Tabla']], Tema.pref('vistaPedidos') || '') +
+      sel('vistaClientes', 'Vista de clientes', [['tarjetas', 'Tarjetas'], ['tabla', 'Tabla']], Tema.pref('vistaClientes') || '') +
+      sel('vistaInventario', 'Vista de inventario', [['tarjetas', 'Tarjetas'], ['tabla', 'Tabla']], Tema.pref('vistaInventario') || '') +
+      sel('periodo', 'Período inicial del dashboard', PERIODOS, Tema.pref('periodo') || '') +
+      sel('densidad', 'Densidad', [['comoda', 'Cómoda'], ['compacta', 'Compacta']], Tema.pref('densidad') || '') +
+      sel('saludo', 'Saludo y fecha', mo, bs('saludo')) +
+      sel('reloj', 'Reloj', mo, bs('reloj')) +
+      sel('formatoHora', 'Formato de hora', [['12h', '12 horas'], ['24h', '24 horas']], Tema.pref('formatoHora') || '') +
+      sel('frases', 'Frases motivadoras', [['siempre', 'En la bienvenida'], ['ocasional', 'Aviso ocasional'], ['nunca', 'No mostrar']], Tema.pref('frases') || '') +
+      sel('modo', 'Modo', [['oscuro', 'Oscuro'], ['claro', 'Claro']], Tema.pref('modo') || '') +
+      sel('acento', 'Color de acento', acentos, Tema.pref('acento') || '') +
+    '</div><div class="row"><button class="btn xs" id="pr-reset">Restablecer mis preferencias</button></div></div>');
+  $('#prefs-w').onchange = e => {
+    const s = e.target.closest('select[data-pk]'); if (!s) return;
+    const k = s.dataset.pk; let v = s.value;
+    if (k === 'saludo' || k === 'reloj') v = v === '1' ? true : (v === '0' ? false : '');
+    Tema.setPref(k, v); aplicarPrefsUsuario(); toast('Preferencia guardada');
+  };
+  $('#pr-reset').onclick = () => { Tema.limpiarPrefs(); aplicarPrefsUsuario(); vistaPrefs(); toast('Preferencias restablecidas'); };
 }
 async function cambiarEstado(p, estado) {
   const campos = [];
@@ -1094,6 +1221,7 @@ function vistaRapidas() {
 /* ================= Actualización automática ================= */
 setInterval(() => {
   if (!TOKEN || document.hidden || document.querySelector('.ov')) return;
+    if (document.activeElement && document.activeElement.tagName === 'SELECT') return;
   frasesOcasional();
   TICK++;
   if (TAB === 'chats' && CHAT && puede('chats.ver')) pollChat(false);
@@ -1117,3 +1245,10 @@ setInterval(() => {
 
 /* Diseño global: tema.js ya aplicó la copia guardada; aquí se sincroniza con el servidor (también antes de entrar) */
 api('config').then(r => Tema.aplicar(r)).catch(() => {});
+
+// Persistir preferencias del usuario en la hoja "Preferencias" (con retardo para agrupar cambios)
+let _prefTimer = 0;
+Tema.alGuardar(o => {
+  clearTimeout(_prefTimer);
+  _prefTimer = setTimeout(() => { if (TOKEN) api('prefs_guardar', { prefs: o }).catch(() => {}); }, 700);
+});
