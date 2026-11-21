@@ -821,6 +821,53 @@ function tablaPedidos(lista) {
     }).join('') + '</tbody></table></div>';
 }
 
+function cardPedido(p) {
+  const sig = FLUJO[p.estado], id = esc(p.id);
+  return '<div class="card hv"><div class="top"><div><div class="id">' + id + '</div><div class="mut">' + esc(p.fecha) + ' · ' + esc(p.nombre || 'Sin nombre') + '</div></div><span class="badge b-' + esc(p.estado) + '">' + esc(p.estado.replace('_', ' ')) + '</span></div>' +
+    '<div class="prods">' + esc(p.productos.split(' | ').join('\n')) + '</div><div class="tot">' + esc(p.total) + '</div>' +
+    '<div class="mut">' + esc(p.pago) + (p.descuento ? ' · Desc. ' + esc(p.descuento) : '') + '</div>' +
+    '<div class="mut" style="margin-top:6px">📍 ' + esc(p.muni) + (p.zona ? ', zona ' + esc(p.zona) : '') + ', ' + esc(p.depto) + '<br>🏠 ' + esc(p.dir) + '</div>' +
+    (p.guia ? '<div class="mut">🚚 ' + esc(p.transp) + ' · Guía ' + esc(p.guia) + '</div>' : '') +
+    (p.comprobante && p.estado === 'PENDIENTE_PAGO' ? '<div class="warn">📸 Comprobante recibido ' + esc(p.comprobante) + '</div>' : '') +
+    '<div class="row">' + (sig ? '<button class="btn" data-a="sig" data-id="' + id + '">' + SIG_TXT[p.estado] + '</button>' : '') + '<button class="btn sec" data-a="otro" data-id="' + id + '">Otro estado</button></div>' +
+    '<div class="row">' + ((p.estado === 'PENDIENTE_PAGO' || p.pago.indexOf('Zigi') > -1) ? '<button class="btn sec" data-a="link" data-id="' + id + '">💳 ' + (p.link ? 'Reenviar link' : 'Enviar link') + '</button>' : '') +
+    '<button class="btn sec" data-a="chat" data-id="' + id + '">💬 Chat</button><button class="btn sec" data-a="etq" data-id="' + id + '">🏷 Etiqueta</button></div></div>';
+}
+
+async function elegirEstado(p) {
+  const opts = ESTADOS.filter(e => e !== p.estado && (e !== 'CANCELADO' || puede('pedidos.cancelar')) && (!(p.estado === 'PENDIENTE_PAGO' && e === 'CONFIRMADO') || puede('pagos.verificar')));
+  const r = await modal({ titulo: 'Cambiar estado', texto: 'Pedido ' + p.id + ' · ahora está en ' + p.estado.replace('_', ' '),
+    campos: [{ id: 'estado', label: 'Nuevo estado', tipo: 'select', opciones: opts }], ok: 'Continuar' });
+  if (r) cambiarEstado(p, r.estado);
+}
+
+function ctrlEstado(p) {
+  if (!p || !p.id || !ESTADOS || !ESTADOS.length) return '';
+  const opts = ESTADOS.filter(e =>
+    e !== p.estado &&
+    (e !== 'CANCELADO' || puede('pedidos.cancelar')) &&
+    (!(p.estado === 'PENDIENTE_PAGO' && e === 'CONFIRMADO') || puede('pagos.verificar'))
+  );
+  if (!opts.length) return '';
+  const data = esc(JSON.stringify({ id: p.id, estado: p.estado, nombre: p.nombre || '', tel: p.tel || '' }));
+  return '<select class="sel-est" data-ped="' + data + '" onchange="_onCtrlEstado(this)">' +
+    '<option value="">Estado…</option>' +
+    opts.map(e => '<option value="' + esc(e) + '">' + esc(e.replace('_', ' ')) + '</option>').join('') +
+  '</select>';
+}
+
+function _onCtrlEstado(sel) {
+  const nuevo = sel.value;
+  if (!nuevo) return;
+  try {
+    const base = JSON.parse(sel.dataset.ped);
+    const full = (PEDIDOS || []).find(x => x.id === base.id) || base;
+    cambiarEstado(full, nuevo);
+  } finally {
+    sel.value = '';
+  }
+}
+
 function tableroHtml(lista) {
   return '<div class="board">' + COLS.map(e => {
     const items = lista.filter(p => p.estado === e);
