@@ -568,7 +568,7 @@ body[data-modo="claro"] {
 
 
 /* ---- Iconify Duotone / Animado y pastillas de color en Herramientas ---- */
-iconify-icon.sv {
+.sv {
   display: inline-block;
   font-size: 1.2em;
   width: 1em;
@@ -576,10 +576,10 @@ iconify-icon.sv {
   vertical-align: -0.22em;
   flex: none;
 }
-#nav button span iconify-icon.sv { font-size: 24px; vertical-align: middle; }
-#nav .brand iconify-icon.sv { font-size: 28px; color: var(--pri); }
-.al .ic iconify-icon.sv { font-size: 22px; }
-#login .logo iconify-icon.sv { font-size: 52px; color: var(--pri); }
+#nav button span .sv { font-size: 24px; width: 24px; height: 24px; vertical-align: middle; }
+#nav .brand .sv { font-size: 28px; width: 28px; height: 28px; color: var(--pri); }
+.al .ic .sv { font-size: 22px; width: 22px; height: 22px; }
+#login .logo .sv { font-size: 52px; width: 52px; height: 52px; color: var(--pri); }
 
 .tile .em, .big .em {
   width: 54px;
@@ -592,12 +592,14 @@ iconify-icon.sv {
   background: rgba(var(--pri-rgb), .14);
   border: 1px solid rgba(var(--pri-rgb), .22);
 }
-.tile .em iconify-icon.sv, .big .em iconify-icon.sv {
+.tile .em .sv, .big .em .sv {
   font-size: 28px;
+  width: 28px;
+  height: 28px;
   color: var(--pri);
 }
 
-/* Colores por herramienta para darle vida al menú "Más" y "Configuración" */
+/* Colores por herramienta */
 .tile[data-t="pagos"] .em       { background: rgba(16,185,129,.15); border-color: rgba(16,185,129,.3); }
 .tile[data-t="pagos"] .em .sv   { color: #10B981; }
 .tile[data-t="ruta"] .em        { background: rgba(56,189,248,.15); border-color: rgba(56,189,248,.3); }
@@ -606,11 +608,19 @@ iconify-icon.sv {
 .tile[data-t="inventario"] .em .sv { color: #F59E0B; }
 .tile[data-t="rapidas"] .em     { background: rgba(250,204,21,.15); border-color: rgba(250,204,21,.3); }
 .tile[data-t="rapidas"] .em .sv { color: #FACC15; }
-.tile[data-t="configuracion"] .em, .tile[data-c="equipo"] .em { background: rgba(167,139,250,.15); border-color: rgba(167,139,250,.3); }
-.tile[data-t="configuracion"] .em .sv, .tile[data-c="equipo"] .em .sv { color: #A78BFA; }
+.tile[data-t="configuracion"] .em,
+.tile[data-t="equipo"] .em,
+.tile[data-c="equipo"] .em      { background: rgba(167,139,250,.15); border-color: rgba(167,139,250,.3); }
+.tile[data-t="configuracion"] .em .sv,
+.tile[data-t="equipo"] .em .sv,
+.tile[data-c="equipo"] .em .sv  { color: #A78BFA; }
+.tile[data-t="diseno"] .em,
 .tile[data-c="diseno"] .em      { background: rgba(244,114,182,.15); border-color: rgba(244,114,182,.3); }
+.tile[data-t="diseno"] .em .sv,
 .tile[data-c="diseno"] .em .sv  { color: #F472B6; }
+.tile[data-t="respaldo"] .em,
 .tile[data-c="respaldo"] .em    { background: rgba(45,212,191,.15); border-color: rgba(45,212,191,.3); }
+.tile[data-t="respaldo"] .em .sv,
 .tile[data-c="respaldo"] .em .sv { color: #2DD4BF; }
 .tile[data-t="salir"] .em       { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.3); }
 .tile[data-t="salir"] .em .sv   { color: #EF4444; }
