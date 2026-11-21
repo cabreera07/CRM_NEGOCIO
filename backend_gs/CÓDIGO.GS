@@ -1276,6 +1276,11 @@ function aplicarCambioEstado_(hoja, fila, estado, anterior, op) {
     if (estado === 'ENTREGADO' && String(f[PED.PAGO]).indexOf('Contra') === 0) {
       hoja.getRange(fila, PED.PAGO + 1).setValue('Cobrado');
     }
+
+    if (estado === 'PENDIENTE_PAGO') {
+      hoja.getRange(fila, PED.COMPROBANTE + 1).clearContent();
+      f[PED.COMPROBANTE] = '';
+    }
   }, 30000);
 
   if (duplicado) return { duplicado: true, enviado: false, detalle: 'Ya estaba en ese estado.' };

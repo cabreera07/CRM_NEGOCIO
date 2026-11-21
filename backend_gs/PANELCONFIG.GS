@@ -10,7 +10,7 @@ const DISENO_DEFAULT = {
   fondoLogin: { t: 'preset', v: 'pizarra' }, fondoApp: { t: 'preset', v: 'pizarra' }, fondosSec: {},
   blur: 10, opacidad: 88, velo: 40, radio: 12, brillo: false,
   fuente: 'inter', anim: 'equilibrado', permitirModo: true,
-  neon: false, densidad: 'comoda',
+  neon: false,iconos: 'solar', neon: false, densidad: 'comoda', densidad: 'comoda',
   vistaPedidos: 'lista', vistaClientes: 'tarjetas', vistaInventario: 'tarjetas',
   saludo: true, reloj: true, formatoHora: '12h', confirmarSalir: true,
   frases: 'siempre', frasesTxt: ''
@@ -92,6 +92,7 @@ function disenoValidar_(c) {
   bool('brillo'); bool('permitirModo'); bool('neon');
   bool('saludo'); bool('reloj'); bool('confirmarSalir');
   o.fuente = enLista_(c.fuente, ['sistema', 'inter', 'jakarta', 'poppins'], D.fuente);
+  o.iconos = enLista_(c.iconos, ['solar', 'corporativo', 'animado'], D.iconos);
   o.anim = enLista_(c.anim, ['cine', 'equilibrado', 'ahorro'], D.anim);
   o.densidad = enLista_(c.densidad, ['comoda', 'compacta'], D.densidad);
   o.vistaPedidos = enLista_(c.vistaPedidos, ['lista', 'tablero', 'tabla'], D.vistaPedidos);

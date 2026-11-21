@@ -450,10 +450,11 @@ function panelComprobantes_() {
     h.getRange(2, 1, last - 1, PED_COLS).getValues().forEach(function (f) {
       if (!f[PED.ID] || String(f[PED.ESTADO]).trim().toUpperCase() !== 'PENDIENTE_PAGO') return;
       const tel = soloDigitos_(f[PED.TELEFONO]);
+      const tieneComp = f[PED.COMPROBANTE] instanceof Date;
       out.push({
         id: String(f[PED.ID]), tel: tel, nombre: String(f[PED.NOMBRE] || ''), total: moneda_(f[PED.TOTAL]),
-        fecha: fechaCorta_(f[PED.FECHA]), comp: f[PED.COMPROBANTE] instanceof Date ? fechaCorta_(f[PED.COMPROBANTE]) : '',
-        media: imgs[tel] || ''
+        fecha: fechaCorta_(f[PED.FECHA]), comp: tieneComp ? fechaCorta_(f[PED.COMPROBANTE]) : '',
+        media: tieneComp ? (imgs[tel] || '') : ''
       });
     });
   }

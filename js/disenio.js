@@ -1,164 +1,248 @@
-/* ===== Centralizador de diseño (solo administrador) ===== */
-let DI = null, DI_DIRTY = false, DI_SEC = 'inicio', DI_EDIT = null;
-
-async function vistaDiseno() {
-  if (!esAdminEf()) { pintar('<div class="empty">Solo el administrador puede cambiar el diseño.</div>'); return; }
-  const r = await api('config');
-  if (TAB !== 'diseno') return;
-  Tema.aplicar(r);
-  DI = Tema.clon(Tema.guardada()); DI_DIRTY = false; DI_EDIT = null;
-  armarDiseno();
-}
-
-function salirDiseno() { DI_DIRTY = false; DI_EDIT = null; Tema.forzar(null); Tema.revertir(); }
-
-function verFondoEdicion() {
-  Tema.forzar(DI_EDIT === 'login' ? DI.fondoLogin : DI_EDIT === 'sec' ? (DI.fondosSec[DI_SEC] || DI.fondoApp) : null);
-}
-function cambio(re) {
-  DI_DIRTY = true; verFondoEdicion(); Tema.previa(DI);
-  const s = $('#dstat'); if (s) { s.textContent = 'Cambios sin guardar (vista previa)'; s.classList.add('dirty'); }
-  if (re) armarDiseno();
-}
-function setFondo(id, def) {
-  DI_EDIT = id === 'fondoLogin' ? 'login' : id === 'sec' ? 'sec' : 'app';
-  if (id === 'sec') { if (def) DI.fondosSec[DI_SEC] = def; else delete DI.fondosSec[DI_SEC]; }
-  else DI[id] = def;
-}
-
-function bloqueFondo(id, titulo, def, pre) {
-  const pres = Object.keys(Tema.PRESETS).map(k => {
-    const p = Tema.PRESETS[k], on = def && def.t === 'preset' && def.v === k;
-    return '<button class="swb' + (on ? ' on' : '') + '" data-bg="' + id + '" data-t="preset" data-v="' + k + '" style="background:' + p.css + '"><span>' + esc(p.n) + '</span></button>';
-  }).join('');
-  const img = def && def.t === 'imagen'
-    ? '<button class="swb on" style="background:url(\'' + esc(Tema.urlImg(def.v, 400)) + '\') center/cover"><span>Tu imagen</span></button>' : '';
-  const colorVal = def && def.t === 'color' ? def.v : '#0b1224';
-  return '<div class="card"><b>' + titulo + '</b>' + (pre || '') +
-    '<div class="swgrid">' + pres + img + '</div>' +
-    '<div class="row"><button class="btn sec" data-up="' + id + '">Subir imagen</button>' +
-    '<label class="colorbtn">Color sólido <input type="color" data-col="' + id + '" value="' + colorVal + '"></label></div></div>';
-}
-
-function armarDiseno() {
-  const c = DI, y = window.scrollY;
-  const rng = (k, lab, min, max, u) => '<label class="rng"><span>' + lab + '</span><b id="v_' + k + '">' + c[k] + u + '</b><input type="range" data-rng="' + k + '" data-u="' + u + '" min="' + min + '" max="' + max + '" value="' + c[k] + '"></label>';
-  const chk = (k, lab) => '<label class="chk"><input type="checkbox" data-chk="' + k + '"' + (c[k] ? ' checked' : '') + '> ' + lab + '</label>';
-  const txt = (k, lab, max) => '<label>' + lab + '<input data-txt="' + k + '" maxlength="' + max + '" value="' + esc(c[k]) + '"></label>';
-  const sel = (k, obj) => '<select data-sel="' + k + '">' + Object.keys(obj).map(o => '<option value="' + o + '"' + (o === c[k] ? ' selected' : '') + '>' + esc(obj[o].n || obj[o]) + '</option>').join('') + '</select>';
-  const acs = Object.keys(Tema.ACENTOS).map(k => '<button class="ac' + (c.acento === k ? ' on' : '') + '" data-ac="' + k + '" title="' + k + '" style="background:linear-gradient(135deg,' + Tema.ACENTOS[k][0] + ',' + Tema.ACENTOS[k][1] + ')"></button>').join('') +
-    '<button class="ac' + (c.acento === 'custom' ? ' on' : '') + '" data-ac="custom" title="Personalizado" style="background:conic-gradient(#ff5c8a,#ffc247,#2ef2a5,#22d3ff,#b79bff,#ff5c8a)"></button>';
-  const formas = [['redondo', 'Círculo'], ['redondeado', 'Redondeado'], ['libre', 'Libre']]
-    .map(f => '<button class="chip' + (c.logoForma === f[0] ? ' on' : '') + '" data-forma="' + f[0] + '">' + f[1] + '</button>').join('');
-  const secChips = '<div class="chips" style="margin-top:8px">' + Object.keys(Tema.SECCIONES).map(k => '<button class="chip' + (k === DI_SEC ? ' on' : '') + '" data-sec="' + k + '">' + Tema.SECCIONES[k] + (c.fondosSec[k] ? ' •' : '') + '</button>').join('') + '</div>' +
-    '<p class="mut" style="margin:2px 0 0">' + (c.fondosSec[DI_SEC] ? 'Esta sección tiene su propio fondo.' : 'Esta sección usa el fondo del espacio de trabajo.') + '</p>' +
-    (c.fondosSec[DI_SEC] ? '<div class="row" style="margin-top:6px"><button class="chip" data-bg="sec" data-t="global">Volver al fondo global</button></div>' : '');
-  const anims = { cine: 'Cinematográfico (todo activado)', equilibrado: 'Equilibrado', ahorro: 'Ahorro de batería' };
-
-  pintar('<div id="dwrap">' +
-    '<p class="mut" style="margin-bottom:12px">Lo que cambies aquí se ve en vivo. Al pulsar <b>Guardar y aplicar a todos</b>, se guarda en la hoja Config_Global y todo el equipo lo recibe.</p>' +
-    '<div class="g g3">' +
-      '<div class="card"><b>Identidad</b>' + txt('negocio', 'Nombre del negocio', 40) + txt('eslogan', 'Eslogan', 60) + txt('loginTitulo', 'Título del inicio de sesión', 50) + txt('loginTexto', 'Texto del inicio de sesión', 90) +
-        '<div class="lprev">' + (c.logo ? '<img class="logo-img f-' + c.logoForma + '" alt="" src="' + esc(Tema.urlImg(c.logo, 200)) + '">' : '<div class="ph">Sin logo</div>') +
-        '<div style="flex:1"><button class="btn" data-up="logo">Subir logo</button>' + (c.logo ? '<button class="btn sec" style="margin-top:6px" data-quitarlogo="1">Quitar logo</button>' : '') + '</div></div>' +
-        '<div class="chips" style="margin-top:10px">' + formas + '</div></div>' +
-      '<div class="card"><b>Color y modo</b>' +
-        '<div class="chips" style="margin-top:10px"><button class="chip' + (c.modo === 'oscuro' ? ' on' : '') + '" data-modo="oscuro">Oscuro</button><button class="chip' + (c.modo === 'claro' ? ' on' : '') + '" data-modo="claro">Claro</button></div>' +
-        '<label>Color de marca</label><div class="acs">' + acs + '</div>' +
-        (c.acento === 'custom' ? '<div class="row"><label class="colorbtn">Color 1 <input type="color" data-ca="colorA" value="' + c.colorA + '"></label><label class="colorbtn">Color 2 <input type="color" data-ca="colorB" value="' + c.colorB + '"></label></div>' : '') +
-        chk('permitirModo', 'Permitir que cada usuario elija modo claro u oscuro') + '</div>' +
-      '<div class="card"><b>Cristal</b>' + rng('blur', 'Desenfoque', 8, 28, ' px') + rng('opacidad', 'Opacidad de las tarjetas', 20, 95, ' %') + rng('velo', 'Velo de contraste (fotos)', 15, 75, ' %') + rng('radio', 'Redondeo de bordes', 8, 28, ' px') + chk('brillo', 'Reflejo biselado en el borde') + '</div>' +
-    '</div>' +
-    '<div class="g g3">' + bloqueFondo('fondoLogin', 'Fondo del inicio de sesión', c.fondoLogin) + bloqueFondo('fondoApp', 'Fondo del espacio de trabajo', c.fondoApp) + bloqueFondo('sec', 'Fondo por sección', c.fondosSec[DI_SEC] || null, secChips) + '</div>' +
-    '<div class="card"><b>Tipografía y animación</b><div class="fgrid"><label>Tipografía' + sel('fuente', Tema.FUENTES) + '</label><label>Nivel de animación' + sel('anim', anims) + '</label></div></div>' +
-    '<div style="height:90px"></div>' +
-    '<div class="dbar"><span id="dstat" class="' + (DI_DIRTY ? 'dirty' : '') + '">' + (DI_DIRTY ? 'Cambios sin guardar (vista previa)' : 'Sin cambios') + '</span>' +
-      '<button class="btn sec" id="d_desc">Descartar</button><button class="btn sec" id="d_rest">Restablecer</button><button class="btn" id="d_guardar">Guardar y aplicar a todos</button></div></div>');
-
-  const w = $('#dwrap');
-  w.onclick = e => {
-    const t = e.target.closest('button'); if (!t) return;
-    if (t.dataset.bg) { if (t.dataset.t === 'global') setFondo(t.dataset.bg, null); else setFondo(t.dataset.bg, { t: t.dataset.t, v: t.dataset.v }); return cambio(true); }
-    if (t.dataset.up) return subirImagen(t.dataset.up);
-    if (t.dataset.ac) { DI.acento = t.dataset.ac; return cambio(true); }
-    if (t.dataset.modo) { DI.modo = t.dataset.modo; return cambio(true); }
-    if (t.dataset.forma) { DI.logoForma = t.dataset.forma; return cambio(true); }
-    if (t.dataset.sec) { DI_SEC = t.dataset.sec; DI_EDIT = 'sec'; return cambio(true); }
-    if (t.dataset.quitarlogo) { DI.logo = ''; return cambio(true); }
-    if (t.id === 'd_guardar') return guardarDiseno();
-    if (t.id === 'd_desc') return descartarDiseno();
-    if (t.id === 'd_rest') { DI = Tema.clon(Tema.DEF); DI_EDIT = null; return cambio(true); }
+/* ===== Motor de diseño =====
+   Aplica la configuración global (hoja Config_Global) a toda la app.
+   Guarda una copia en localStorage: al abrir, el diseño aparece al instante. */
+const Tema = (function () {
+  const DEF = {
+    negocio: 'Mi Tienda', eslogan: 'Centro de atención',
+    loginTitulo: 'Panel de atención', loginTexto: 'Entra con tu usuario y PIN',
+    logo: '', logoForma: 'redondeado',
+    modo: 'oscuro', acento: 'azul', colorA: '#3f7ad9', colorB: '#2f5fb0',
+    fondoLogin: { t: 'preset', v: 'pizarra' }, fondoApp: { t: 'preset', v: 'pizarra' }, fondosSec: {},
+    blur: 10, opacidad: 88, velo: 40, radio: 12, brillo: false,
+    fuente: 'inter', anim: 'equilibrado', permitirModo: true,
+    iconos: 'solar', neon: false, densidad: 'comoda',
+    vistaPedidos: 'lista', vistaClientes: 'tarjetas', vistaInventario: 'tarjetas',
+    saludo: true, reloj: true, formatoHora: '12h', confirmarSalir: true,
+    frases: 'siempre', frasesTxt: ''
   };
-  w.oninput = e => {
-    const t = e.target;
-    if (t.dataset.rng) { DI[t.dataset.rng] = Number(t.value); $('#v_' + t.dataset.rng).textContent = t.value + (t.dataset.u || ''); return cambio(false); }
-    if (t.dataset.txt) { DI[t.dataset.txt] = t.value; return cambio(false); }
-    if (t.dataset.ca) { DI[t.dataset.ca] = t.value; return cambio(false); }
-    if (t.dataset.col) { setFondo(t.dataset.col, { t: 'color', v: t.value }); return cambio(false); }
+  const ACENTOS = {
+    azul: ['#3f7ad9', '#2f5fb0'], violeta: ['#7b72d6', '#5b52b5'], esmeralda: ['#2fa37a', '#1f7d5c'],
+    ambar: ['#d99a2b', '#b8761a'], rosa: ['#c9577f', '#a03a60'], pizarra: ['#7c8aa0', '#5a6980'], vino: ['#b5475f', '#8f3148']
   };
-  w.onchange = e => {
-    const t = e.target;
-    if (t.dataset.sel) { DI[t.dataset.sel] = t.value; return cambio(false); }
-    if (t.dataset.chk) { DI[t.dataset.chk] = t.checked; return cambio(false); }
-    if (t.dataset.col) return cambio(true);
+  const PRESETS = {
+    pizarra:      { n: 'Pizarra', anim: false, claro: false, css: 'linear-gradient(180deg,#141920 0%,#0e1116 100%)' },
+    niebla:       { n: 'Niebla (claro)', anim: false, claro: true, css: 'linear-gradient(180deg,#f7f8fa,#e9ecf1)' },
+    grafito:      { n: 'Grafito', anim: false, claro: false, css: 'radial-gradient(80% 60% at 50% 0%,#2a2f3a,#0e1116 70%)' },
+    medianoche:   { n: 'Medianoche', anim: false, claro: false, css: 'radial-gradient(90% 70% at 50% -10%,#16233d 0%,#0b111c 60%,#07090f 100%)' },
+    marmol:       { n: 'Mármol oscuro', anim: false, claro: false, css: 'linear-gradient(115deg,transparent 38%,rgba(255,255,255,.05) 44%,transparent 50%),linear-gradient(62deg,transparent 56%,rgba(255,255,255,.035) 61%,transparent 67%),radial-gradient(90% 70% at 30% 15%,#272c36,#0a0c11 75%)' },
+    arquitectura: { n: 'Arquitectura', anim: false, claro: false, css: 'radial-gradient(70% 30% at 50% 100%,rgba(120,150,200,.12),transparent 70%),repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 1px,transparent 1px 120px),linear-gradient(180deg,#0c0f14 0%,#121821 100%)' },
+    aurora:       { n: 'Aurora suave', anim: true, claro: false, css: 'radial-gradient(60% 50% at 15% 20%,rgba(63,122,217,.16),transparent 60%),radial-gradient(55% 45% at 85% 15%,rgba(109,111,214,.12),transparent 60%),#0e1116' },
+    oceano:       { n: 'Océano', anim: true, claro: false, css: 'radial-gradient(70% 60% at 20% 10%,rgba(45,140,150,.18),transparent 60%),#0a1519' },
+    atardecer:    { n: 'Atardecer', anim: true, claro: false, css: 'radial-gradient(70% 60% at 85% 10%,rgba(200,120,70,.16),transparent 60%),radial-gradient(70% 60% at 10% 85%,rgba(120,90,170,.14),transparent 60%),#15111a' },
+    esmeralda:    { n: 'Esmeralda', anim: true, claro: false, css: 'radial-gradient(70% 60% at 20% 15%,rgba(47,163,122,.16),transparent 60%),#0a1411' },
+    minimal:      { n: 'Minimal claro', anim: false, claro: true, css: 'radial-gradient(80% 60% at 20% 0%,#ffffff,#e9f0ff 60%,#dbe6fb 100%)' }
   };
-  window.scrollTo(0, y);
-}
+  const TEMAS = {
+    corporativo: {
+      n: 'Corporativo', d: 'Sobrio, ejecutivo y sin distracciones', prev: ['#141920', '#3f7ad9', '#94a3b8'],
+      cfg: { modo: 'oscuro', acento: 'azul', fondoLogin: { t: 'preset', v: 'arquitectura' }, fondoApp: { t: 'preset', v: 'pizarra' }, blur: 10, opacidad: 92, velo: 45, radio: 10, brillo: false, neon: false, fuente: 'inter', anim: 'equilibrado', iconos: 'corporativo' }
+    },
+    ejecutivo: {
+      n: 'Ejecutivo Cristal', d: 'Medianoche con tarjetas traslúcidas', prev: ['#0b1530', '#3f7ad9', '#22d3ff'],
+      cfg: { modo: 'oscuro', acento: 'azul', fondoLogin: { t: 'preset', v: 'medianoche' }, fondoApp: { t: 'preset', v: 'medianoche' }, blur: 18, opacidad: 72, velo: 40, radio: 16, brillo: true, neon: true, fuente: 'jakarta', anim: 'cine', iconos: 'solar' }
+    },
+    dinamico: {
+      n: 'Moderno Animado', d: 'Aurora violeta e iconos en movimiento', prev: ['#161229', '#7b72d6', '#3f7ad9'],
+      cfg: { modo: 'oscuro', acento: 'violeta', fondoLogin: { t: 'preset', v: 'aurora' }, fondoApp: { t: 'preset', v: 'aurora' }, blur: 14, opacidad: 78, velo: 40, radio: 14, brillo: true, neon: true, fuente: 'jakarta', anim: 'cine', iconos: 'animado' }
+    },
+    esmeralda: {
+      n: 'Esmeralda Ventas', d: 'Verde elegante enfocado en comercio', prev: ['#0a1411', '#2fa37a', '#1f7d5c'],
+      cfg: { modo: 'oscuro', acento: 'esmeralda', fondoLogin: { t: 'preset', v: 'esmeralda' }, fondoApp: { t: 'preset', v: 'esmeralda' }, blur: 12, opacidad: 84, velo: 40, radio: 12, brillo: false, neon: false, fuente: 'inter', anim: 'equilibrado', iconos: 'solar' }
+    },
+    claro: {
+      n: 'Claro Minimalista', d: 'Luminoso y limpio para oficina de día', prev: ['#f2f4f7', '#3f7ad9', '#dbe6fb'],
+      cfg: { modo: 'claro', acento: 'azul', fondoLogin: { t: 'preset', v: 'minimal' }, fondoApp: { t: 'preset', v: 'niebla' }, blur: 10, opacidad: 94, velo: 30, radio: 10, brillo: false, neon: false, fuente: 'inter', anim: 'equilibrado', iconos: 'corporativo' }
+    },
+    atardecer: {
+      n: 'Atardecer Boutique', d: 'Cálido en ámbar con toque moderno', prev: ['#15111a', '#d99a2b', '#b8761a'],
+      cfg: { modo: 'oscuro', acento: 'ambar', fondoLogin: { t: 'preset', v: 'atardecer' }, fondoApp: { t: 'preset', v: 'atardecer' }, blur: 14, opacidad: 82, velo: 42, radio: 14, brillo: true, neon: false, fuente: 'poppins', anim: 'equilibrado', iconos: 'solar' }
+    }
+  };
+  const FUENTES = {
+    sistema: { n: 'Sistema (la más rápida)', css: 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', url: '' },
+    inter:   { n: 'Inter', css: '"Inter",system-ui,sans-serif', url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap' },
+    jakarta: { n: 'Plus Jakarta Sans', css: '"Plus Jakarta Sans",system-ui,sans-serif', url: 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap' },
+    poppins: { n: 'Poppins', css: '"Poppins",system-ui,sans-serif', url: 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap' }
+  };
+  const SEC = { inicio: 'Inicio', chats: 'Chats', pedidos: 'Pedidos', clientes: 'Clientes', mas: 'Herramientas' };
 
-function leerImagen(file, max, mime, q) {
-  return new Promise((ok, fail) => {
-    const fr = new FileReader();
-    fr.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        const k = Math.min(1, max / Math.max(img.width, img.height));
-        const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-        const x = c.getContext('2d');
-        if (mime === 'image/jpeg') { x.fillStyle = '#000'; x.fillRect(0, 0, c.width, c.height); }
-        x.drawImage(img, 0, 0, c.width, c.height);
-        const dataUrl = c.toDataURL(mime, q);
-        ok({ mime: mime, b64: dataUrl.split(',')[1], dataUrl: dataUrl });
-      };
-      img.onerror = () => fail(new Error('No pude leer esa imagen.'));
-      img.src = fr.result;
+  let res = null, vista = null, forzado = null, sec = 'inicio', enLogin = true, capa = 0, tk = 0, ultimo = '';
+  const local = {};
+
+  const clon = o => JSON.parse(JSON.stringify(o));
+  function normalizar(c) {
+    const o = Object.assign(clon(DEF), c || {});
+    if (!o.fondoLogin || !o.fondoLogin.t) o.fondoLogin = clon(DEF.fondoLogin);
+    if (!o.fondoApp || !o.fondoApp.t) o.fondoApp = clon(DEF.fondoApp);
+    if (!o.fondosSec || typeof o.fondosSec !== 'object') o.fondosSec = {};
+    return o;
+  }
+  const cfgActual = () => vista || res.cfg;
+  function rgb(h) {
+    h = String(h || '#000000').replace('#', '');
+    if (h.length === 3) h = h.split('').map(x => x + x).join('');
+    const n = parseInt(h, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function lum(h) {
+    const c = rgb(h).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  }
+  function modoEf(cfg) {
+    if (vista) return cfg.modo;
+    const p = pref('modo');
+    return (cfg.permitirModo && (p === 'claro' || p === 'oscuro')) ? p : cfg.modo;
+  }
+  const urlImg = (id, w) => local[id] || ('https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w' + w);
+  const fondoDe = (cfg, s) => (cfg.fondosSec && cfg.fondosSec[s]) || cfg.fondoApp;
+
+  function logoHtml(cfg, px) {
+    return cfg.logo
+      ? '<img class="logo-img f-' + cfg.logoForma + '" style="width:' + px + 'px;height:' + px + 'px" alt="" src="' + urlImg(cfg.logo, px > 100 ? 400 : 200) + '">'
+      : '⚡';
+  }
+  function cargarFuente(k) {
+    const f = FUENTES[k];
+    if (!f || !f.url || document.getElementById('f_' + k)) return;
+    const l = document.createElement('link'); l.id = 'f_' + k; l.rel = 'stylesheet'; l.href = f.url; document.head.appendChild(l);
+  }
+  function html(id, h) {
+    const e = document.getElementById(id);
+    if (e && e.dataset.h !== h) { e.innerHTML = h; e.dataset.h = h; }
+  }
+  function marca(cfg) {
+    document.title = cfg.negocio + ' · Panel';
+    html('lg-logo', logoHtml(cfg, 72));
+    const t = (id, v) => { const e = document.getElementById(id); if (e && e.textContent !== v) e.textContent = v; };
+    t('lg-titulo', cfg.loginTitulo); t('lg-sub', cfg.loginTexto);
+    t('lg-neg', cfg.negocio + (cfg.eslogan ? ' · ' + cfg.eslogan : '')); t('hneg', cfg.negocio);
+    const br = document.querySelector('#nav .brand');
+    if (br && br.dataset.h !== logoHtml(cfg, 40)) { br.innerHTML = logoHtml(cfg, 40); br.dataset.h = logoHtml(cfg, 40); }
+  }
+
+  function veil(def, cfg) {
+    const modo = modoEf(cfg);
+    let usar = false;
+    if (def.t === 'imagen') usar = true;
+    else if (def.t === 'preset') { const p = PRESETS[def.v]; usar = !!p && (!!p.claro !== (modo === 'claro')); }
+    document.getElementById('veil').style.opacity = usar ? cfg.velo / 100 : 0;
+  }
+
+  function ponerFondo(def, cfg) {
+    const clave = JSON.stringify(def) + '|' + modoEf(cfg) + '|' + cfg.velo + '|' + cfg.anim;
+    if (clave === ultimo) return;
+    ultimo = clave;
+    const mi = ++tk;
+    const A = document.getElementById('bgA'), B = document.getElementById('bgB');
+    const nueva = capa ? A : B, vieja = capa ? B : A;
+    const mostrar = function () {
+      if (mi !== tk) return;
+      capa = 1 - capa; nueva.classList.add('on'); vieja.classList.remove('on'); veil(def, cfg);
     };
-    fr.onerror = () => fail(new Error('No pude leer ese archivo.'));
-    fr.readAsDataURL(file);
-  });
-}
+    nueva.className = 'bg'; nueva.style.cssText = '';
+    if (def.t === 'imagen' && def.v) {
+      const url = urlImg(def.v, 1920), im = new Image();
+      im.onload = function () { nueva.style.background = 'url("' + url + '") center/cover no-repeat'; mostrar(); };
+      im.onerror = function () { nueva.style.background = PRESETS.aurora.css; mostrar(); };
+      im.src = url;
+    } else if (def.t === 'color') {
+      nueva.style.background = def.v; mostrar();
+    } else {
+      const p = PRESETS[def.v] || PRESETS.aurora;
+      nueva.style.background = p.css;
+      if (p.anim && cfg.anim !== 'ahorro') { nueva.style.backgroundSize = '160% 160%'; nueva.classList.add('bg-anim'); }
+      mostrar();
+    }
+  }
 
-function subirImagen(id) {
-  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/png,image/jpeg,image/webp';
-  inp.onchange = async () => {
-    const f = inp.files[0]; if (!f) return;
-    busy(true);
-    try {
-      const esLogo = id === 'logo';
-      const im = await leerImagen(f, esLogo ? 512 : 1920, esLogo ? 'image/png' : 'image/jpeg', 0.82);
-      const r = await api('diseno_imagen', { tipo: esLogo ? 'logo' : 'fondo', mime: im.mime, b64: im.b64 });
-      Tema.local(r.id, im.dataUrl);
-      if (esLogo) DI.logo = r.id; else setFondo(id, { t: 'imagen', v: r.id });
-      cambio(true);
-      toast(r.publico ? 'Imagen subida. Recuerda guardar para aplicarla a todos.' : 'Imagen subida, pero Drive no permitió el enlace público: otros usuarios no la verán.', r.publico ? '' : 'warn');
-    } catch (e) { toast(e.message, 'err'); }
-    busy(false);
+  let uid = '', onPrefs = null;
+  const PK = () => 'crm_prefs_' + uid;
+  function leerPrefs() { try { return JSON.parse(localStorage.getItem(PK()) || '{}') || {}; } catch (e) { return {}; } }
+  function guardarPrefs(o) { try { localStorage.setItem(PK(), JSON.stringify(o)); } catch (e) {} }
+  function pref(k) { return leerPrefs()[k]; }
+  function emitir(o) { if (onPrefs && uid) onPrefs(o); }
+  function setPrefs(cambios) {
+    const o = leerPrefs();
+    Object.keys(cambios).forEach(k => {
+      const v = cambios[k];
+      if (v === '' || v === null || v === undefined) delete o[k]; else o[k] = v;
+    });
+    o._ts = Date.now(); guardarPrefs(o); pintar(cfgActual()); emitir(o);
+  }
+  function setPref(k, v) { const c = {}; c[k] = v; setPrefs(c); }
+  function limpiarPrefs() { const o = { _ts: Date.now() }; guardarPrefs(o); pintar(cfgActual()); emitir(o); }
+  function setUser(u) { uid = String(u || ''); pintar(cfgActual()); }
+  function mergeRemote(r) {
+    const l = leerPrefs(), tl = Number(l._ts) || 0, tr = Number(r && r._ts) || 0;
+    if (tr > tl) { guardarPrefs(r); pintar(cfgActual()); return 'remoto'; }
+    if (tl > tr && tl > 0) { emitir(l); return 'local'; }
+    return 'igual';
+  }
+
+  function pintar(cfg) {
+    const b = document.body, s = b.style, modo = modoEf(cfg), ahorro = cfg.anim === 'ahorro';
+    b.dataset.modo = modo; b.dataset.anim = cfg.anim;
+    b.dataset.neon = cfg.neon ? '1' : '0';
+    b.dataset.dens = pref('densidad') || cfg.densidad || 'comoda';
+    const pa = vista ? '' : pref('acento');
+    const ac = (pa && ACENTOS[pa]) ? ACENTOS[pa] : (cfg.acento === 'custom' ? [cfg.colorA, cfg.colorB] : (ACENTOS[cfg.acento] || ACENTOS.azul));
+    const a = rgb(ac[0]);
+    s.setProperty('--pri', ac[0]); s.setProperty('--pri2', ac[1]); s.setProperty('--pri-rgb', a.join(','));
+    s.setProperty('--glow', 'rgba(' + a.join(',') + ',' + (cfg.neon ? '.30' : '.10') + ')');
+    s.setProperty('--glow2', 'rgba(' + rgb(ac[1]).join(',') + ',' + (cfg.neon ? '.22' : '.06') + ')');
+    s.setProperty('--pri-tx', (lum(ac[0]) + lum(ac[1])) / 2 > 0.3 ? '#04121f' : '#ffffff');
+    s.setProperty('--blur', (ahorro ? 0 : cfg.blur) + 'px');
+    s.setProperty('--card-a', (ahorro ? Math.max(cfg.opacidad, 90) : cfg.opacidad) / 100);
+    s.setProperty('--radius', cfg.radio + 'px');
+    s.setProperty('--hl', cfg.brillo ? (modo === 'claro' ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.16)') : 'transparent');
+    const f = FUENTES[cfg.fuente] || FUENTES.sistema;
+    cargarFuente(cfg.fuente); s.setProperty('--font', f.css);
+    if (window.Iconos && typeof window.Iconos.setPack === 'function') {
+      window.Iconos.setPack(cfg.iconos || 'solar');
+    }
+    marca(cfg);
+    ponerFondo(forzado || (enLogin ? cfg.fondoLogin : fondoDe(cfg, sec)), cfg);
+  }
+
+  function aplicar(r, forzar) {
+    if (!r || !r.cfg) return;
+    if (!forzar && res && r.version === res.version) return;
+    res = { version: r.version, cfg: normalizar(r.cfg) };
+    vista = null;
+    try { localStorage.setItem('cfg_v1', JSON.stringify(res)); } catch (e) {}
+    pintar(res.cfg);
+  }
+  function previa(cfg) { vista = normalizar(cfg); pintar(vista); }
+  function revertir() { vista = null; pintar(res.cfg); }
+  function seccion(s) { sec = s; if (!enLogin) { const c = cfgActual(); ponerFondo(forzado || fondoDe(c, s), c); } }
+  function modoLogin(b) {
+    enLogin = b;
+    document.body.classList.toggle('en-login', b);
+    const c = cfgActual();
+    ponerFondo(forzado || (b ? c.fondoLogin : fondoDe(c, sec)), c);
+  }
+  function setModo(m) { setPref('modo', m); }
+
+  document.addEventListener('pointermove', function (e) {
+    const c = e.target.closest && e.target.closest('.card');
+    if (!c) return;
+    const r = c.getBoundingClientRect();
+    c.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+    c.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  }, { passive: true });
+
+  try { const c = JSON.parse(localStorage.getItem('cfg_v1') || 'null'); if (c && c.cfg) res = { version: c.version, cfg: normalizar(c.cfg) }; } catch (e) {}
+  if (!res) res = { version: 0, cfg: normalizar({}) };
+  pintar(res.cfg);
+
+  return {
+    setPrefs: setPrefs, limpiarPrefs: limpiarPrefs, setUser: setUser, mergeRemote: mergeRemote,
+    alGuardar: function (f) { onPrefs = f; },
+    pref: pref, setPref: setPref,
+    DEF: DEF, ACENTOS: ACENTOS, PRESETS: PRESETS, TEMAS: TEMAS, FUENTES: FUENTES, SECCIONES: SEC,
+    clon: clon, aplicar: aplicar, previa: previa, revertir: revertir, seccion: seccion, modoLogin: modoLogin, setModo: setModo,
+    cfg: cfgActual, guardada: () => res.cfg, modo: () => modoEf(cfgActual()), urlImg: urlImg,
+    local: (id, u) => { local[id] = u; }, logoHtml: px => logoHtml(cfgActual(), px),
+    forzar: f => { forzado = f; pintar(cfgActual()); }
   };
-  inp.click();
-}
-
-async function guardarDiseno() {
-  busy(true);
-  try {
-    const r = await api('diseno_guardar', { cfg: DI });
-    DI_EDIT = null; Tema.forzar(null); Tema.aplicar(r, true);
-    DI = Tema.clon(Tema.guardada()); DI_DIRTY = false;
-    toast('Diseño aplicado para todo el equipo');
-    armarDiseno();
-  } catch (e) { toast(e.message, 'err'); }
-  busy(false);
-}
-
-function descartarDiseno() {
-  DI_DIRTY = false; DI_EDIT = null; Tema.forzar(null); Tema.revertir();
-  DI = Tema.clon(Tema.guardada()); armarDiseno();
-}
+})();

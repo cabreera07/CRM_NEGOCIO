@@ -624,3 +624,52 @@ body[data-modo="claro"] {
 .tile[data-c="respaldo"] .em .sv { color: #2DD4BF; }
 .tile[data-t="salir"] .em       { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.3); }
 .tile[data-t="salir"] .em .sv   { color: #EF4444; }
+
+
+/* ---- Galería de temas predeterminados ---- */
+.thmgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  gap: 10px;
+}
+.thm {
+  text-align: left;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--bd);
+  background: var(--card2);
+  color: var(--tx);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color .2s, transform .15s;
+}
+.thm:hover {
+  border-color: rgba(var(--pri-rgb), .55);
+  transform: translateY(-2px);
+}
+.thm.on {
+  border-color: var(--pri);
+  box-shadow: 0 0 0 2px rgba(var(--pri-rgb), .25);
+}
+.thm-sw {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+.thm-sw i {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.18);
+  display: block;
+}
+.thm-n {
+  font-weight: 700;
+  font-size: 14px;
+}
+.thm-d {
+  font-size: 12px;
+  color: var(--mu);
+  margin-top: 2px;
+  line-height: 1.3;
+}

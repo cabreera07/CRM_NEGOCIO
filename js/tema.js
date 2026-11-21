@@ -2,7 +2,7 @@
    Aplica la configuración global (hoja Config_Global) a toda la app.
    Guarda una copia en localStorage: al abrir, el diseño aparece al instante. */
 const Tema = (function () {
-    const DEF = {
+  const DEF = {
     negocio: 'Mi Tienda', eslogan: 'Centro de atención',
     loginTitulo: 'Panel de atención', loginTexto: 'Entra con tu usuario y PIN',
     logo: '', logoForma: 'redondeado',
@@ -10,7 +10,7 @@ const Tema = (function () {
     fondoLogin: { t: 'preset', v: 'pizarra' }, fondoApp: { t: 'preset', v: 'pizarra' }, fondosSec: {},
     blur: 10, opacidad: 88, velo: 40, radio: 12, brillo: false,
     fuente: 'inter', anim: 'equilibrado', permitirModo: true,
-    neon: false, densidad: 'comoda',
+    iconos: 'solar', neon: false, densidad: 'comoda',
     vistaPedidos: 'lista', vistaClientes: 'tarjetas', vistaInventario: 'tarjetas',
     saludo: true, reloj: true, formatoHora: '12h', confirmarSalir: true,
     frases: 'siempre', frasesTxt: ''
@@ -31,6 +31,32 @@ const Tema = (function () {
     atardecer:    { n: 'Atardecer', anim: true, claro: false, css: 'radial-gradient(70% 60% at 85% 10%,rgba(200,120,70,.16),transparent 60%),radial-gradient(70% 60% at 10% 85%,rgba(120,90,170,.14),transparent 60%),#15111a' },
     esmeralda:    { n: 'Esmeralda', anim: true, claro: false, css: 'radial-gradient(70% 60% at 20% 15%,rgba(47,163,122,.16),transparent 60%),#0a1411' },
     minimal:      { n: 'Minimal claro', anim: false, claro: true, css: 'radial-gradient(80% 60% at 20% 0%,#ffffff,#e9f0ff 60%,#dbe6fb 100%)' }
+  };
+  const TEMAS = {
+    corporativo: {
+      n: 'Corporativo', d: 'Sobrio, ejecutivo y sin distracciones', prev: ['#141920', '#3f7ad9', '#94a3b8'],
+      cfg: { modo: 'oscuro', acento: 'azul', fondoLogin: { t: 'preset', v: 'arquitectura' }, fondoApp: { t: 'preset', v: 'pizarra' }, blur: 10, opacidad: 92, velo: 45, radio: 10, brillo: false, neon: false, fuente: 'inter', anim: 'equilibrado', iconos: 'corporativo' }
+    },
+    ejecutivo: {
+      n: 'Ejecutivo Cristal', d: 'Medianoche con tarjetas traslúcidas', prev: ['#0b1530', '#3f7ad9', '#22d3ff'],
+      cfg: { modo: 'oscuro', acento: 'azul', fondoLogin: { t: 'preset', v: 'medianoche' }, fondoApp: { t: 'preset', v: 'medianoche' }, blur: 18, opacidad: 72, velo: 40, radio: 16, brillo: true, neon: true, fuente: 'jakarta', anim: 'cine', iconos: 'solar' }
+    },
+    dinamico: {
+      n: 'Moderno Animado', d: 'Aurora violeta e iconos en movimiento', prev: ['#161229', '#7b72d6', '#3f7ad9'],
+      cfg: { modo: 'oscuro', acento: 'violeta', fondoLogin: { t: 'preset', v: 'aurora' }, fondoApp: { t: 'preset', v: 'aurora' }, blur: 14, opacidad: 78, velo: 40, radio: 14, brillo: true, neon: true, fuente: 'jakarta', anim: 'cine', iconos: 'animado' }
+    },
+    esmeralda: {
+      n: 'Esmeralda Ventas', d: 'Verde elegante enfocado en comercio', prev: ['#0a1411', '#2fa37a', '#1f7d5c'],
+      cfg: { modo: 'oscuro', acento: 'esmeralda', fondoLogin: { t: 'preset', v: 'esmeralda' }, fondoApp: { t: 'preset', v: 'esmeralda' }, blur: 12, opacidad: 84, velo: 40, radio: 12, brillo: false, neon: false, fuente: 'inter', anim: 'equilibrado', iconos: 'solar' }
+    },
+    claro: {
+      n: 'Claro Minimalista', d: 'Luminoso y limpio para oficina de día', prev: ['#f2f4f7', '#3f7ad9', '#dbe6fb'],
+      cfg: { modo: 'claro', acento: 'azul', fondoLogin: { t: 'preset', v: 'minimal' }, fondoApp: { t: 'preset', v: 'niebla' }, blur: 10, opacidad: 94, velo: 30, radio: 10, brillo: false, neon: false, fuente: 'inter', anim: 'equilibrado', iconos: 'corporativo' }
+    },
+    atardecer: {
+      n: 'Atardecer Boutique', d: 'Cálido en ámbar con toque moderno', prev: ['#15111a', '#d99a2b', '#b8761a'],
+      cfg: { modo: 'oscuro', acento: 'ambar', fondoLogin: { t: 'preset', v: 'atardecer' }, fondoApp: { t: 'preset', v: 'atardecer' }, blur: 14, opacidad: 82, velo: 42, radio: 14, brillo: true, neon: false, fuente: 'poppins', anim: 'equilibrado', iconos: 'solar' }
+    }
   };
   const FUENTES = {
     sistema: { n: 'Sistema (la más rápida)', css: 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', url: '' },
@@ -63,6 +89,7 @@ const Tema = (function () {
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
   }
   function modoEf(cfg) {
+    if (vista) return cfg.modo;
     const p = pref('modo');
     return (cfg.permitirModo && (p === 'claro' || p === 'oscuro')) ? p : cfg.modo;
   }
@@ -145,7 +172,6 @@ const Tema = (function () {
   function setPref(k, v) { const c = {}; c[k] = v; setPrefs(c); }
   function limpiarPrefs() { const o = { _ts: Date.now() }; guardarPrefs(o); pintar(cfgActual()); emitir(o); }
   function setUser(u) { uid = String(u || ''); pintar(cfgActual()); }
-  // Gana la copia más reciente (local vs. hoja Preferencias)
   function mergeRemote(r) {
     const l = leerPrefs(), tl = Number(l._ts) || 0, tr = Number(r && r._ts) || 0;
     if (tr > tl) { guardarPrefs(r); pintar(cfgActual()); return 'remoto'; }
@@ -158,7 +184,7 @@ const Tema = (function () {
     b.dataset.modo = modo; b.dataset.anim = cfg.anim;
     b.dataset.neon = cfg.neon ? '1' : '0';
     b.dataset.dens = pref('densidad') || cfg.densidad || 'comoda';
-    const pa = pref('acento');
+    const pa = vista ? '' : pref('acento');
     const ac = (pa && ACENTOS[pa]) ? ACENTOS[pa] : (cfg.acento === 'custom' ? [cfg.colorA, cfg.colorB] : (ACENTOS[cfg.acento] || ACENTOS.azul));
     const a = rgb(ac[0]);
     s.setProperty('--pri', ac[0]); s.setProperty('--pri2', ac[1]); s.setProperty('--pri-rgb', a.join(','));
@@ -171,6 +197,9 @@ const Tema = (function () {
     s.setProperty('--hl', cfg.brillo ? (modo === 'claro' ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.16)') : 'transparent');
     const f = FUENTES[cfg.fuente] || FUENTES.sistema;
     cargarFuente(cfg.fuente); s.setProperty('--font', f.css);
+    if (window.Iconos && typeof window.Iconos.setPack === 'function') {
+      window.Iconos.setPack(cfg.iconos || 'solar');
+    }
     marca(cfg);
     ponerFondo(forzado || (enLogin ? cfg.fondoLogin : fondoDe(cfg, sec)), cfg);
   }
@@ -187,14 +216,13 @@ const Tema = (function () {
   function revertir() { vista = null; pintar(res.cfg); }
   function seccion(s) { sec = s; if (!enLogin) { const c = cfgActual(); ponerFondo(forzado || fondoDe(c, s), c); } }
   function modoLogin(b) {
-  enLogin = b;
-  document.body.classList.toggle('en-login', b);
-  const c = cfgActual();
-  ponerFondo(forzado || (b ? c.fondoLogin : fondoDe(c, sec)), c);
-}
-    function setModo(m) { setPref('modo', m); }
-    
-  // Reflejo que sigue al cursor en las tarjetas de cristal
+    enLogin = b;
+    document.body.classList.toggle('en-login', b);
+    const c = cfgActual();
+    ponerFondo(forzado || (b ? c.fondoLogin : fondoDe(c, sec)), c);
+  }
+  function setModo(m) { setPref('modo', m); }
+
   document.addEventListener('pointermove', function (e) {
     const c = e.target.closest && e.target.closest('.card');
     if (!c) return;
@@ -203,16 +231,15 @@ const Tema = (function () {
     c.style.setProperty('--my', (e.clientY - r.top) + 'px');
   }, { passive: true });
 
-  // Copia guardada: el diseño aparece al instante
   try { const c = JSON.parse(localStorage.getItem('cfg_v1') || 'null'); if (c && c.cfg) res = { version: c.version, cfg: normalizar(c.cfg) }; } catch (e) {}
   if (!res) res = { version: 0, cfg: normalizar({}) };
   pintar(res.cfg);
 
   return {
-        setPrefs: setPrefs, limpiarPrefs: limpiarPrefs, setUser: setUser, mergeRemote: mergeRemote,
+    setPrefs: setPrefs, limpiarPrefs: limpiarPrefs, setUser: setUser, mergeRemote: mergeRemote,
     alGuardar: function (f) { onPrefs = f; },
     pref: pref, setPref: setPref,
-    DEF: DEF, ACENTOS: ACENTOS, PRESETS: PRESETS, FUENTES: FUENTES, SECCIONES: SEC,
+    DEF: DEF, ACENTOS: ACENTOS, PRESETS: PRESETS, TEMAS: TEMAS, FUENTES: FUENTES, SECCIONES: SEC,
     clon: clon, aplicar: aplicar, previa: previa, revertir: revertir, seccion: seccion, modoLogin: modoLogin, setModo: setModo,
     cfg: cfgActual, guardada: () => res.cfg, modo: () => modoEf(cfgActual()), urlImg: urlImg,
     local: (id, u) => { local[id] = u; }, logoHtml: px => logoHtml(cfgActual(), px),
