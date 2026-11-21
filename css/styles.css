@@ -540,3 +540,26 @@ body[data-modo] .btn.xs {
   gap: 6px;
   font-size: 13px;
 }
+
+/* ---- Reactivar imágenes de fondo y cristal en el espacio de trabajo ---- */
+body:not(.en-login) .bg,
+body:not(.en-login) #veil {
+  display: block;
+}
+body[data-modo="oscuro"],
+body[data-modo="claro"] {
+  --card: rgba(var(--card-rgb), var(--card-a));
+  --hdr: rgba(var(--hdr-rgb), .82);
+}
+.card, .conv, .col, .oc, .dbar, header, #nav {
+  backdrop-filter: blur(var(--blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+}
+.modal {
+  background: rgba(var(--card-rgb), .94);
+  backdrop-filter: blur(calc(var(--blur) + 6px)) saturate(150%);
+  -webkit-backdrop-filter: blur(calc(var(--blur) + 6px)) saturate(150%);
+}
+.donut div {
+  background: var(--bg2);
+}
