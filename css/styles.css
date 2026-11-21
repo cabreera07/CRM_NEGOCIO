@@ -129,7 +129,7 @@ body[data-anim="ahorro"] .card::before{display:none}
 .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .big{text-align:center;cursor:pointer}.big .em{font-size:30px}
 .donut{width:120px;height:120px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 22px var(--glow)}
-.donut div{width:78px;height:78px;border-radius:50%;background:var(--bg2);display:flex;flex-direction:column;align-items:center;justify-content:center}
+
 .donut b{font-size:20px}.donut span{font-size:11px;color:var(--mu)}
 .leg{flex:1;min-width:0;font-size:13px}.leg div{display:flex;align-items:center;gap:6px;margin:3px 0}.leg i{width:10px;height:10px;border-radius:3px;flex:none}
 .rk{margin:10px 0}.bar{height:8px;border-radius:99px;background:var(--card2);margin-top:4px;overflow:hidden}
