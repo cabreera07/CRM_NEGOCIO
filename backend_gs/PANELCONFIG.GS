@@ -1,15 +1,19 @@
 /***** CENTRALIZADOR DE DISEÑO (hoja Config_Global) *****/
 const H_CONFIG = 'Config_Global';
-const DISENO_PRESETS = ['aurora', 'marmol', 'medianoche', 'arquitectura', 'oceano', 'atardecer', 'grafito', 'esmeralda', 'minimal'];
+const DISENO_PRESETS = ['aurora', 'marmol', 'medianoche', 'arquitectura', 'oceano', 'atardecer', 'grafito', 'esmeralda', 'minimal', 'pizarra', 'niebla'];
 const DISENO_SECCIONES = ['inicio', 'chats', 'pedidos', 'clientes', 'mas'];
 const DISENO_DEFAULT = {
   negocio: 'Mi Tienda', eslogan: 'Centro de atención',
   loginTitulo: 'Panel de atención', loginTexto: 'Entra con tu usuario y PIN',
   logo: '', logoForma: 'redondeado',
-  modo: 'oscuro', acento: 'azul', colorA: '#22d3ff', colorB: '#3b82f6',
-  fondoLogin: { t: 'preset', v: 'aurora' }, fondoApp: { t: 'preset', v: 'aurora' }, fondosSec: {},
-  blur: 18, opacidad: 55, velo: 40, radio: 18, brillo: true,
-  fuente: 'sistema', anim: 'equilibrado', permitirModo: true
+  modo: 'oscuro', acento: 'azul', colorA: '#3f7ad9', colorB: '#2f5fb0',
+  fondoLogin: { t: 'preset', v: 'pizarra' }, fondoApp: { t: 'preset', v: 'pizarra' }, fondosSec: {},
+  blur: 10, opacidad: 88, velo: 40, radio: 12, brillo: false,
+  fuente: 'inter', anim: 'equilibrado', permitirModo: true,
+  neon: false, densidad: 'comoda',
+  vistaPedidos: 'lista', vistaClientes: 'tarjetas', vistaInventario: 'tarjetas',
+  saludo: true, reloj: true, formatoHora: '12h', confirmarSalir: true,
+  frases: 'siempre', frasesTxt: ''
 };
 
 function hojaConfig_() { return hojaConEncabezado_(H_CONFIG, ['Clave', 'Valor', 'Actualizado', 'Por']); }
@@ -66,12 +70,13 @@ function fondoValido_(f, def) {
 function disenoValidar_(c) {
   const D = DISENO_DEFAULT, o = {};
   const txt = function (k, max) { o[k] = limpiar_(c[k] !== undefined ? c[k] : D[k], max); };
+  const bool = function (k) { o[k] = c[k] === undefined ? D[k] : !(c[k] === false || String(c[k]) === 'false'); };
   txt('negocio', 40); txt('eslogan', 60); txt('loginTitulo', 50); txt('loginTexto', 90);
   if (!o.negocio) o.negocio = D.negocio;
   o.logo = idDrive_(c.logo);
   o.logoForma = enLista_(c.logoForma, ['redondo', 'redondeado', 'libre'], D.logoForma);
   o.modo = c.modo === 'claro' ? 'claro' : 'oscuro';
-  o.acento = enLista_(c.acento, ['azul', 'violeta', 'esmeralda', 'ambar', 'rosa', 'custom'], D.acento);
+  o.acento = enLista_(c.acento, ['azul', 'violeta', 'esmeralda', 'ambar', 'rosa', 'pizarra', 'vino', 'custom'], D.acento);
   o.colorA = hex_(c.colorA, D.colorA); o.colorB = hex_(c.colorB, D.colorB);
   o.fondoLogin = fondoValido_(c.fondoLogin, D.fondoLogin);
   o.fondoApp = fondoValido_(c.fondoApp, D.fondoApp);
@@ -80,14 +85,22 @@ function disenoValidar_(c) {
     const f = fondoValido_((c.fondosSec || {})[s], null);
     if (f) o.fondosSec[s] = f;
   });
-  o.blur = numRango_(c.blur, 8, 28, D.blur);
-  o.opacidad = numRango_(c.opacidad, 20, 95, D.opacidad);
+  o.blur = numRango_(c.blur, 0, 28, D.blur);
+  o.opacidad = numRango_(c.opacidad, 20, 100, D.opacidad);
   o.velo = numRango_(c.velo, 15, 75, D.velo);
-  o.radio = numRango_(c.radio, 8, 28, D.radio);
-  o.brillo = !(c.brillo === false || String(c.brillo) === 'false');
+  o.radio = numRango_(c.radio, 4, 28, D.radio);
+  bool('brillo'); bool('permitirModo'); bool('neon');
+  bool('saludo'); bool('reloj'); bool('confirmarSalir');
   o.fuente = enLista_(c.fuente, ['sistema', 'inter', 'jakarta', 'poppins'], D.fuente);
   o.anim = enLista_(c.anim, ['cine', 'equilibrado', 'ahorro'], D.anim);
-  o.permitirModo = !(c.permitirModo === false || String(c.permitirModo) === 'false');
+  o.densidad = enLista_(c.densidad, ['comoda', 'compacta'], D.densidad);
+  o.vistaPedidos = enLista_(c.vistaPedidos, ['lista', 'tablero', 'tabla'], D.vistaPedidos);
+  o.vistaClientes = enLista_(c.vistaClientes, ['tarjetas', 'tabla'], D.vistaClientes);
+  o.vistaInventario = enLista_(c.vistaInventario, ['tarjetas', 'tabla'], D.vistaInventario);
+  o.formatoHora = enLista_(c.formatoHora, ['12h', '24h'], D.formatoHora);
+  o.frases = enLista_(c.frases, ['siempre', 'ocasional', 'nunca'], D.frases);
+  o.frasesTxt = String(c.frasesTxt || '').split(/\n|\|/)
+    .map(function (x) { return limpiar_(x, 140); }).filter(String).slice(0, 25).join(' | ');
   return o;
 }
 

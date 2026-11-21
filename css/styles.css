@@ -321,3 +321,99 @@ body[data-dens="compacta"] .v{font-size:22px}
 .tbl .acc{white-space:nowrap;text-align:right}
 .tbl .acc .btn{margin-left:4px}
 .tbl input{padding:6px 8px;font-size:14px}
+
+/* ============ SUPERFICIES SÓLIDAS (sin foto ni glassmorphism) ============ */
+body[data-modo="oscuro"]{
+  --bg:#090D16;--bg2:#0D1321;--card-rgb:17,24,39;--card:#111827;--card2:#1A2233;
+  --hdr-rgb:13,19,33;--hdr:#0D1321;--veil-rgb:9,13,22;
+  --bd:rgba(255,255,255,.08);--bd-h:rgba(255,255,255,.14);
+  --tx:#F9FAFB;--mu:#9CA3AF;
+  --ok:#10B981;--wa:#F59E0B;--ba:#EF4444;--vio:#A78BFA;
+  --botbg:rgba(255,255,255,.06);--shadow:rgba(0,0,0,.35);
+}
+body[data-modo="claro"]{
+  --bg:#F3F4F6;--bg2:#FFFFFF;--card-rgb:255,255,255;--card:#FFFFFF;--card2:#F3F4F6;
+  --hdr-rgb:255,255,255;--hdr:#FFFFFF;--veil-rgb:243,244,246;
+  --bd:rgba(17,24,39,.10);--bd-h:rgba(17,24,39,.20);
+  --tx:#111827;--mu:#4B5563;
+  --ok:#059669;--wa:#B45309;--ba:#DC2626;--vio:#6D28D9;
+  --botbg:#EEF2FF;--shadow:rgba(17,24,39,.08);
+}
+/* Fuera del login: lienzo sólido, sin capas de fondo */
+body:not(.en-login){background:var(--bg)}
+body:not(.en-login) .bg,body:not(.en-login) #veil{display:none}
+
+header,#nav{background:var(--hdr);backdrop-filter:none;-webkit-backdrop-filter:none}
+header{border-bottom:1px solid var(--bd)}
+header::after{display:none}
+#nav{border-color:var(--bd)}
+
+.card,.conv,.col,.modal,.dbar{backdrop-filter:none;-webkit-backdrop-filter:none}
+.card{background:var(--card);border:1px solid var(--bd);box-shadow:none}
+.card::before{display:none}
+.conv,.col{background:var(--card)}
+.modal{background:var(--card);box-shadow:0 -10px 40px var(--shadow)}
+.dbar{background:var(--card)}
+.mini{background:var(--card2)}
+body[data-neon] .hv:hover,.hv:hover{border-color:var(--bd-h);box-shadow:none;transform:none}
+.donut{box-shadow:none}
+.donut div{background:var(--card)}
+.card svg circle{fill:var(--card)!important}
+
+/* Legibilidad de textos secundarios */
+.mut,.l{color:var(--mu)}
+.l{font-size:12.5px}
+
+/* Cifras: blanco limpio; el color se reserva para estado */
+.v{color:var(--tx);text-shadow:none;font-variant-numeric:tabular-nums}
+.v.ok{color:var(--ok)}.v.wa{color:var(--wa)}.v.ba{color:var(--ba)}
+
+/* ---- Layout fluido ---- */
+main{max-width:1440px;padding:14px 16px}
+header{padding:10px 16px}
+@media (min-width:700px){main{padding:14px 24px}header{padding:10px 24px}}
+@media (min-width:1100px){main{padding:14px 32px}header{padding:10px 32px}}
+
+/* El reloj del header era un duplicado */
+#hreloj{display:none!important}
+
+/* ---- Cabecera compacta de una fila ---- */
+.dhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.dsal{font-size:16px;font-weight:600;min-width:0}
+.dsal b{font-weight:700}
+.dfecha{color:var(--mu);font-weight:400;font-size:14px}
+.dhead .chips{padding-bottom:0;margin-left:auto}
+.dhead .chip{padding:6px 12px;font-size:13px}
+
+/* ---- Indicador de sincronización (barra superior) ---- */
+.sync{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mu)}
+.sync i{width:12px;height:12px;border-radius:50%;border:2px solid var(--bd-h);border-top-color:var(--pri);animation:spin .8s linear infinite}
+@media (max-width:600px){.syncl{display:none}}
+
+/* ---- Grillas simétricas del dashboard ---- */
+.g.dkpi,.g.dgrid3,.g.dgrid2{gap:16px;margin-bottom:16px}
+.dkpi{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:1023px){.dkpi{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:559px){.dkpi{grid-template-columns:1fr}}
+.dgrid3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:1199px){
+  .dgrid3{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dgrid3.dtop>:first-child{grid-column:1/-1}
+}
+@media (max-width:699px){.dgrid3{grid-template-columns:1fr}}
+.dgrid2{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:899px){.dgrid2{grid-template-columns:1fr}}
+.dgrid3>.card,.dgrid2>.card{height:100%}
+
+/* ---- Tarjeta KPI ---- */
+.kpi{display:flex;flex-direction:column;justify-content:space-between;min-height:116px;padding:16px;margin-bottom:0}
+.kpi .l{margin:0;font-size:12.5px;font-weight:500;letter-spacing:.01em}
+.kpi .v{margin:8px 0 6px;font-size:28px;font-weight:700;letter-spacing:-.01em}
+.kpi .sub{font-weight:400}
+
+/* ---- Torre de control: ámbar solo si hay pendientes ---- */
+.torre.hot{border-color:rgba(245,158,11,.35)}
+.torre.hot .top b .sv{color:var(--wa)}
+
+/* ---- Chat: misma altura útil con el nuevo padding ---- */
+.dbar{border-color:var(--bd)}

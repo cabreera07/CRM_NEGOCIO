@@ -8,7 +8,7 @@ const TITULOS = { chats:'Chats', pedidos:'Pedidos', clientes:'Clientes', mas:'He
 const PERIODOS = [['hoy','Hoy'],['7d','7 días'],['30d','30 días'],['mes','Este mes']];
 const TEMAS = { azul:'Azul neón', violeta:'Violeta neón', claro:'Claro' };
 
-let TOKEN='', ME=null, ADMIN=false, ESTADOS=[], RAPIDAS=[], TAB='inicio', TORRE=null, PERIODO='hoy';
+let TOKEN='', ME=null, ADMIN=false, ESTADOS=[], RAPIDAS=[], TAB='inicio', TORRE=null, PERIODO='7d';
 let PEDIDOS=[], PRODS=[], CLIENTES=[], CHATS=[], CHAT=null, POLL_BUSY=false, TICK=0, PREV_SL=null;
 let FCHAT='todos', QCHAT='';
 const PF = { estado:'activos', pago:'todos', muni:'todos', rango:'todos', q:'', orden:'recientes', vista:'lista' };
@@ -93,6 +93,36 @@ function actualizarReloj() {
   const c = $('#hclock'); if (c) c.textContent = textoHora();
 }
 setInterval(actualizarReloj, 15000);
+
+/* ================= Cabecera compacta, indicador de sync y caché SWR ================= */
+function cabeceraCompacta(pills) {
+  const nombre = String((ME && ME.n) || '').split(' ')[0];
+  const f = textoFecha(false);
+  return '<div class="dhead"><div class="dsal"><span>' + saludoHora() + ', <b>' + esc(nombre) + '</b></span>' +
+    '<span class="dfecha"> · ' + esc(f.charAt(0).toUpperCase() + f.slice(1)) + '</span></div>' + (pills || '') + '</div>';
+}
+
+let SYNC_N = 0;
+function setSync(on) {
+  SYNC_N = Math.max(0, SYNC_N + (on ? 1 : -1));
+  const s = $('#sync'); if (s) s.classList.toggle('hide', SYNC_N === 0);
+}
+
+const DASH_PREFIX = 'dash_swr_v1_', DASH_MAX_EDAD = 6 * 3600000;
+function dashKey() { return DASH_PREFIX + (ME ? ME.u : '') + '_' + PERIODO; }
+function leerCacheDash() {
+  try {
+    const r = JSON.parse(localStorage.getItem(dashKey()) || 'null');
+    return (r && r.d && r.t && r.e && Date.now() - r.ts < DASH_MAX_EDAD) ? r : null;
+  } catch (e) { return null; }
+}
+function guardarCacheDash(d, t, e) {
+  try { localStorage.setItem(dashKey(), JSON.stringify({ ts: Date.now(), d: d, t: t, e: e })); } catch (x) {}
+}
+function limpiarCacheDash() {
+  try { Object.keys(localStorage).filter(k => k.indexOf(DASH_PREFIX) === 0).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+}
+
 function frasesOcasional() {
   if (!TOKEN || P('frases') !== 'ocasional') return;
   let ult = 0; try { ult = Number(sessionStorage.getItem('fr_t')) || 0; } catch (e) {}
@@ -255,6 +285,7 @@ function animarContadores(quieto) {
 
 /* ================= Sesión y navegación ================= */
 function cerrarSesion(msg) {
+  limpiarCacheDash();
   TOKEN = ''; CHAT = null; PREV_SL = null; PERMS = []; SIM = null;
   renderSimBar();
   try { sessionStorage.removeItem('tok'); } catch (e) {}
@@ -346,7 +377,7 @@ window.addEventListener('resize', moverIndicador);
 /* ================= INICIO ================= */
 function htmlTorre(t) {
   const it = t.alertas;
-  return '<div class="card anim"><div class="top"><b>🚨 Torre de control</b><span class="mut">' + (it.length ? it.length + ' pendiente(s)' : 'Todo en orden') + '</span></div>' +
+  return '<div class="card torre' + (it.length ? ' hot' : '') + ' anim"><div class="top"><b>🚨 Torre de control</b><span class="mut">' + (it.length ? it.length + ' pendiente(s)' : 'Todo en orden') + '</span></div>' +
     (it.length ? it.map((a, i) => '<div class="al ' + a.n + '" data-al="' + i + '"><div class="ic">' + (ICON[a.ic] || '•') + '</div><div class="cb"><div class="nm">' + esc(a.t) + '</div><div class="mut nm">' + esc(a.d) + '</div></div><span>›</span></div>').join('')
                 : '<div class="empty" style="padding:18px 0">Nada urgente por ahora ✨</div>') + '</div>';
 }
@@ -361,49 +392,66 @@ function accionAlerta(a) {
 function actualizarBadgeInicio() { badge('inicio', TORRE ? TORRE.alertas.filter(a => a.n === 'rojo').length : 0); }
 
 async function vistaInicioAdmin(quieto) {
-  const [d, t, e] = await Promise.all([
-  api('dashboard', { periodo: PERIODO }),
-  api('torre'),
-  puede('equipo.ver') ? api('equipo') : Promise.resolve({ equipo: [] })
-]);
-  if (TAB !== 'inicio') return;
-  TORRE = t; actualizarBadgeInicio();
+  const periodo = PERIODO;
+  const cache = leerCacheDash();
+  if (cache && TAB === 'inicio') {            // 1) pinta al instante lo último guardado
+    TORRE = cache.t; actualizarBadgeInicio();
+    renderInicioAdmin(cache.d, cache.t, cache.e, true);
+  }
+  setSync(true);
+  try {                                        // 2) pide lo real en segundo plano
+    const [d, t, e] = await Promise.all([
+      api('dashboard', { periodo: periodo }),
+      api('torre'),
+      puede('equipo.ver') ? api('equipo') : Promise.resolve({ equipo: [] })
+    ]);
+    if (TAB !== 'inicio' || periodo !== PERIODO) return;
+    guardarCacheDash(d, t, e);
+    TORRE = t; actualizarBadgeInicio();
+    renderInicioAdmin(d, t, e, !!cache || !!quieto);   // 3) actualiza sin parpadeo
+  } catch (err) {
+    if (!cache) throw err;
+    if (!quieto) toast('Sin conexión: mostrando los últimos datos guardados.', 'warn');
+  } finally { setSync(false); }
+}
+
+function renderInicioAdmin(d, t, e, quieto) {
   const k = d.kpi;
   const dl = v => v == null ? '' : '<span class="dl ' + (v >= 0 ? 'up' : 'dn') + '">' + (v >= 0 ? '▲' : '▼') + ' ' + Math.abs(v) + '%</span> ';
-  const kp = (lab, n, f, sub) => '<div class="card anim"><p class="l">' + lab + '</p><p class="v" data-n="' + n + '" data-f="' + f + '">0</p><p class="l">' + sub + '</p></div>';
+  const kp = (lab, n, f, sub, tono) => '<div class="card kpi anim"><p class="l">' + lab + '</p><p class="v' + (tono && n > 0 ? ' ' + tono : '') + '" data-n="' + n + '" data-f="' + f + '">0</p><p class="l sub">' + sub + '</p></div>';
   const pctEnt = k.pedidos ? Math.round(k.entregados / k.pedidos * 100) : 0;
   const est = Object.keys(ESTADO_COL).map(n => ({ n: n.replace('_', ' '), v: d.estados[n] || 0, c: ESTADO_COL[n] })).filter(x => x.v > 0);
   const totE = est.reduce((a, x) => a + x.v, 0);
-  const pc = { 'Link / transferencia':'#22d3ff', 'Contra entrega':'#ffc247', 'Pagado con puntos':'#a78bfa' };
-  const pg = Object.keys(d.pagos).map(n => ({ n: n, v: d.pagos[n], c: pc[n] || '#8aa3c7' }));
+  const pc = { 'Link / transferencia':'#22d3ff', 'Contra entrega':'#F59E0B', 'Pagado con puntos':'#a78bfa' };
+  const pg = Object.keys(d.pagos).map(n => ({ n: n, v: d.pagos[n], c: pc[n] || '#9CA3AF' }));
   const totP = pg.reduce((a, x) => a + x.v, 0);
   const sv = d.serie, totS = sv.ventas.reduce((a, b) => a + b, 0);
-  const eq = e.equipo;
+  const eq = e.equipo || [];
+  const pills = '<div class="chips">' + PERIODOS.map(p => '<button class="chip' + (p[0] === PERIODO ? ' on' : '') + '" data-p="' + p[0] + '">' + p[1] + '</button>').join('') + '</div>';
 
   pintar(
-    bloqueBienvenida() +
-    '<div class="chips">' + PERIODOS.map(p => '<button class="chip' + (p[0] === PERIODO ? ' on' : '') + '" data-p="' + p[0] + '">' + p[1] + '</button>').join('') + '</div>' +
-    '<div class="g g4">' +
-      kp('💰 Ventas', k.ventas, 'q', dl(k.dVentas) + 'vs período anterior') +
-      kp('🧾 Pedidos', k.pedidos, 'n', dl(k.dPedidos) + k.unidades + ' unidades') +
-      kp('🎯 Ticket promedio', k.ticket, 'q2', 'por pedido') +
-      kp('⏳ Por cobrar', t.porCobrar, 'q', t.cnt.pagos + ' link(s) pendientes') +
-      kp('✅ Entregados', k.entregados, 'n', pctEnt + '% de los pedidos') +
-      kp('❌ Cancelados', k.cancelados, 'n', 'en el período') +
-      kp('🎁 Descuentos', k.descuentos, 'q', 'regalados a clientes') +
-      kp('👤 Clientes activos', k.clientes, 'n', 'compraron en el período') +
+    cabeceraCompacta(pills) +
+    '<div class="g dkpi">' +
+      kp('Ventas', k.ventas, 'q', dl(k.dVentas) + 'vs período anterior', 'ok') +
+      kp('Pedidos', k.pedidos, 'n', dl(k.dPedidos) + k.unidades + ' unidades') +
+      kp('Ticket promedio', k.ticket, 'q2', 'por pedido') +
+      kp('Por cobrar', t.porCobrar, 'q', t.cnt.pagos + ' link(s) pendientes', 'wa') +
+      kp('Entregados', k.entregados, 'n', pctEnt + '% de los pedidos', 'ok') +
+      kp('Cancelados', k.cancelados, 'n', 'en el período', 'ba') +
+      kp('Descuentos', k.descuentos, 'q', 'regalados a clientes') +
+      kp('Clientes activos', k.clientes, 'n', 'compraron en el período') +
     '</div>' +
-    '<div class="g g3">' + htmlTorre(t) +
+    '<div class="g dgrid3 dtop">' + htmlTorre(t) +
       '<div class="card anim"><div class="top"><b>📈 ' + (PERIODO === 'hoy' ? 'Ventas · últimos 7 días' : 'Ventas por día') + '</b><span class="mut">' + Q0(totS) + '</span></div>' + areaChart(sv.labels, sv.ventas) +
         '<div class="top mut" style="font-size:11px"><span>' + esc(sv.labels[0]) + '</span><span>' + esc(sv.labels[sv.labels.length - 1]) + '</span></div></div>' +
       '<div class="card anim"><div class="top"><b>🕒 Pedidos por hora</b><span class="mut">hora del día</span></div>' + barrasHoras(d.horas) + '</div>' +
     '</div>' +
-    '<div class="g g3">' +
+    '<div class="g dgrid3">' +
       '<div class="card anim"><b>📊 Estados</b>' + donut(est, totE, 'pedidos') + '</div>' +
       '<div class="card anim"><b>💳 Métodos de pago</b>' + donut(pg, totP, 'pedidos') + '</div>' +
       '<div class="card anim"><b>🏆 Más vendidos</b>' + rank(d.productos.map(p => ({ n: p.n, v: p.v, u: p.u })), i => Q0(i.v) + ' · ' + i.u + ' u') + '</div>' +
     '</div>' +
-    '<div class="g g3">' +
+    '<div class="g dgrid2">' +
       '<div class="card anim"><b>📍 Municipios</b>' + rank(d.munis.map(m => ({ n: m.n, v: m.v, c: m.c })), i => Q0(i.v) + ' · ' + i.c + ' ped.') + '</div>' +
       '<div class="card anim"><b>🧑‍💼 Equipo</b>' + eq.map(m => '<div class="top" style="padding:8px 0;align-items:center"><div style="display:flex;gap:10px;align-items:center">' + avatar(m.n) + '<div><div class="id">' + esc(m.n) + '</div><div class="mut">' + (m.r === 'admin' ? 'Administrador' : 'Operador') + (m.ult ? ' · último ' + esc(m.ult) : '') + '</div></div></div><b>' + m.msgs + ' msg</b></div>').join('') +
         '<p class="mut" style="margin-top:6px">Mensajes enviados desde el panel (últimos ~1,500 del chat).</p></div>' +
@@ -418,7 +466,7 @@ async function vistaInicioOp(quieto) {
   TORRE = t; actualizarBadgeInicio();
   const c = t.cnt;
   const big = (e, n, lab, go) => '<div class="card hv big anim" data-go="' + go + '"><div class="em">' + e + '</div><p class="v" data-n="' + n + '" data-f="n">0</p><p class="l">' + lab + '</p></div>';
-    pintar(bloqueBienvenida() +
+    pintar(cabeceraCompacta('') +
     '<div class="g g2">' + big('📸', c.comprobantes, 'Comprobantes por verificar', 'pagos') + big('💬', c.sinResp, 'Chats sin responder', 'sinresp') +
       big('📦', c.despachar, 'Por despachar', 'despacho') + big('🚚', c.camino, 'En camino', 'ruta') + '</div>' + htmlTorre(t));
   $$('[data-go]').forEach(x => {

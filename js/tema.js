@@ -171,7 +171,12 @@ const Tema = (function () {
   function previa(cfg) { vista = normalizar(cfg); pintar(vista); }
   function revertir() { vista = null; pintar(res.cfg); }
   function seccion(s) { sec = s; if (!enLogin) { const c = cfgActual(); ponerFondo(forzado || fondoDe(c, s), c); } }
-  function modoLogin(b) { enLogin = b; const c = cfgActual(); ponerFondo(forzado || (b ? c.fondoLogin : fondoDe(c, sec)), c); }
+  function modoLogin(b) {
+  enLogin = b;
+  document.body.classList.toggle('en-login', b);
+  const c = cfgActual();
+  ponerFondo(forzado || (b ? c.fondoLogin : fondoDe(c, sec)), c);
+}
   function setModo(m) { try { localStorage.setItem('modo', m); } catch (e) {} pintar(cfgActual()); }
 
   // Reflejo que sigue al cursor en las tarjetas de cristal

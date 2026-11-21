@@ -186,39 +186,41 @@ function conLock_(fn, esperaMs) {
 /***** WEBHOOK *****/
 function doGet(e) {
   const p = (e && e.parameter) || {};
-  // Verificación del webhook de Meta (igual que antes)
   if (p['hub.mode']) {
     if (p['hub.mode'] === 'subscribe' && p['hub.verify_token'] === VERIFY_TOKEN) {
       return ContentService.createTextOutput(p['hub.challenge']);
     }
     return ContentService.createTextOutput('Verificación fallida');
   }
-  // Cualquier otra visita: el panel de administración
-  return HtmlService.createHtmlOutputFromFile('Panel')
-    .setTitle(NEGOCIO + ' · Panel')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, servicio: NEGOCIO }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function responderPanel_(req) {
+  const salida = function (o) {
+    return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+  };
+  try {
+    return salida({ ok: true, data: panelApi(req.token || '', req.accion || '', req.datos || {}) });
+  } catch (err) {
+    return salida({ ok: false, error: err.message || String(err) });
+  }
 }
 
 function doPost(e) {
-  // RASTREADOR: guarda el último POST recibido
-
   const raw = (e && e.postData && e.postData.contents) ? e.postData.contents : '{}';
+  let body = null;
+  try { body = JSON.parse(raw); } catch (err) {}
+  if (body && body.origen === 'panel') return responderPanel_(body);
+
   try {
-    const body = JSON.parse(raw);
-    if (body.origen === 'panel') return responderPanel_(body);
-  } catch (err) {}
-  try {
-    PropertiesService.getScriptProperties().setProperty(
-      'ULTIMO_POST',
-      new Date().toISOString() + ' | ' + String((e && e.postData && e.postData.contents) || 'vacío').substring(0, 500)
-    );
+    PropertiesService.getScriptProperties().setProperty('ULTIMO_POST',
+      new Date().toISOString() + ' | ' + raw.substring(0, 500));
   } catch (x) {}
 
   const ok = ContentService.createTextOutput('OK');
   try {
-    if (!e || !e.postData || !e.postData.contents) return ok;
-    const body = JSON.parse(e.postData.contents);
-    if (body.object !== 'whatsapp_business_account') return ok;
+    if (!body || body.object !== 'whatsapp_business_account') return ok;
     (body.entry || []).forEach(function (entry) {
       (entry.changes || []).forEach(function (change) {
         const v = change.value || {};
@@ -229,18 +231,6 @@ function doPost(e) {
       });
     });
   } catch (err) { registrarError_(err); }
-  function responderPanel_(req) {
-  try {
-    const data = panelApi(req.token || '', req.accion || '', req.datos || {});
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: true, data: data }))
-      .setMimeType(ContentService.MimeType.JSON);
-  } catch (err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: false, error: err.message || String(err) }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
   return ok;
 }
 
