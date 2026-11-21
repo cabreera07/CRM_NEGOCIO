@@ -563,3 +563,54 @@ body[data-modo="claro"] {
 .donut div {
   background: var(--bg2);
 }
+
+<script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+
+
+/* ---- Iconify Duotone / Animado y pastillas de color en Herramientas ---- */
+iconify-icon.sv {
+  display: inline-block;
+  font-size: 1.2em;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.22em;
+  flex: none;
+}
+#nav button span iconify-icon.sv { font-size: 24px; vertical-align: middle; }
+#nav .brand iconify-icon.sv { font-size: 28px; color: var(--pri); }
+.al .ic iconify-icon.sv { font-size: 22px; }
+#login .logo iconify-icon.sv { font-size: 52px; color: var(--pri); }
+
+.tile .em, .big .em {
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 10px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--pri-rgb), .14);
+  border: 1px solid rgba(var(--pri-rgb), .22);
+}
+.tile .em iconify-icon.sv, .big .em iconify-icon.sv {
+  font-size: 28px;
+  color: var(--pri);
+}
+
+/* Colores por herramienta para darle vida al menú "Más" y "Configuración" */
+.tile[data-t="pagos"] .em       { background: rgba(16,185,129,.15); border-color: rgba(16,185,129,.3); }
+.tile[data-t="pagos"] .em .sv   { color: #10B981; }
+.tile[data-t="ruta"] .em        { background: rgba(56,189,248,.15); border-color: rgba(56,189,248,.3); }
+.tile[data-t="ruta"] .em .sv    { color: #38BDF8; }
+.tile[data-t="inventario"] .em  { background: rgba(245,158,11,.15); border-color: rgba(245,158,11,.3); }
+.tile[data-t="inventario"] .em .sv { color: #F59E0B; }
+.tile[data-t="rapidas"] .em     { background: rgba(250,204,21,.15); border-color: rgba(250,204,21,.3); }
+.tile[data-t="rapidas"] .em .sv { color: #FACC15; }
+.tile[data-t="configuracion"] .em, .tile[data-c="equipo"] .em { background: rgba(167,139,250,.15); border-color: rgba(167,139,250,.3); }
+.tile[data-t="configuracion"] .em .sv, .tile[data-c="equipo"] .em .sv { color: #A78BFA; }
+.tile[data-c="diseno"] .em      { background: rgba(244,114,182,.15); border-color: rgba(244,114,182,.3); }
+.tile[data-c="diseno"] .em .sv  { color: #F472B6; }
+.tile[data-c="respaldo"] .em    { background: rgba(45,212,191,.15); border-color: rgba(45,212,191,.3); }
+.tile[data-c="respaldo"] .em .sv { color: #2DD4BF; }
+.tile[data-t="salir"] .em       { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.3); }
+.tile[data-t="salir"] .em .sv   { color: #EF4444; }
