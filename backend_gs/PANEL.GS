@@ -29,18 +29,19 @@ function panelApi(token, accion, d) {
   const ses = sesion_(token);
   AUTOR_ACTUAL_ = 'Sistema';
   switch (accion) {
-    case 'init':            return { negocio: NEGOCIO, estados: ESTADOS_PEDIDO, ses: ses, rapidas: rapidasActuales_(), diseno: disenoLeer_() };
+    case 'init':            return { negocio: NEGOCIO, estados: ESTADOS_PEDIDO, ses: ses, rapidas: rapidasActuales_(), diseno: disenoLeer_(), prefs: prefsLeer_(ses) };
+    case 'prefs_guardar':   return prefsGuardar_(d, ses);
     case 'mi_sesion':       return panelMiSesion_(ses);
-    case 'diseno_guardar':  requierePerm_(ses, 'diseno.editar'); return disenoGuardar_(d, ses);
-    case 'diseno_imagen':   requierePerm_(ses, 'diseno.editar'); return disenoImagen_(d, ses);
+    case 'diseno_guardar':  requiereAdmin_(ses); return disenoGuardar_(d, ses);
+    case 'diseno_imagen':   requiereAdmin_(ses); return disenoImagen_(d, ses);
     case 'torre':           return panelTorre_();
     case 'dashboard':       requierePerm_(ses, 'dashboard.ver'); return panelDashboard_(d);
     case 'equipo':          if (!tienePerm_(ses, 'equipo.ver') && !tienePerm_(ses, 'equipo.gestionar') && !tienePerm_(ses, 'permisos.delegar') && !tienePerm_(ses, 'roles.editar')) throw new Error('Sin permiso.'); return panelEquipo_(ses);
-    case 'usuario_guardar': return panelUsuarioGuardar_(d, ses);
-    case 'delegar':         return panelDelegar_(d, ses);
-    case 'rol_guardar':     return panelRolGuardar_(d, ses);
+    case 'usuario_guardar': requiereAdmin_(ses); return panelUsuarioGuardar_(d, ses);
+    case 'delegar':         requiereAdmin_(ses); return panelDelegar_(d, ses);
+    case 'rol_guardar':     requiereAdmin_(ses); return panelRolGuardar_(d, ses);
     case 'rapidas_guardar': requierePerm_(ses, 'rapidas.editar'); return panelRapidasGuardar_(d);
-    case 'respaldo':        requierePerm_(ses, 'respaldo.ejecutar'); return panelRespaldo_();
+    case 'respaldo':        requiereAdmin_(ses); return panelRespaldo_();
     case 'inventario':      requierePerm_(ses, 'inventario.ver'); return panelInventario_();
     case 'producto':        requierePerm_(ses, 'inventario.editar'); return panelProducto_(d);
     case 'foto':            requierePerm_(ses, 'inventario.editar'); return panelFoto_(d);
@@ -398,15 +399,15 @@ function panelTorre_() {
         cnt.pagos++; porCobrar += aNumero_(f[PED.TOTAL]);
         if (f[PED.COMPROBANTE] instanceof Date) {
           cnt.comprobantes++;
-          al.push({ n: 'rojo', ic: 'photo', t: 'Comprobante por verificar · ' + f[PED.ID], d: nom + ' · ' + moneda_(f[PED.TOTAL]), a: { t: 'pagos' } });
+          al.push({ n: 'rojo', ic: 'photo', t: 'Comprobante por verificar · ' + f[PED.ID], d: nom + ' · ' + moneda_(f[PED.TOTAL]), a: { t: 'pagos' }, id: String(f[PED.ID]), est: est, nom: nom, tel: tel });
         } else if (horas > HORAS_ALERTA_PAGO) {
-          al.push({ n: 'amarillo', ic: 'clock', t: 'Pago pendiente hace ' + Math.round(horas) + ' h · ' + f[PED.ID], d: nom + ' · ' + moneda_(f[PED.TOTAL]), a: { t: 'chat', tel: tel } });
+          al.push({ n: 'amarillo', ic: 'clock', t: 'Pago pendiente hace ' + Math.round(horas) + ' h · ' + f[PED.ID], d: nom + ' · ' + moneda_(f[PED.TOTAL]), a: { t: 'chat', tel: tel }, id: String(f[PED.ID]), est: est, nom: nom, tel: tel });
         }
       }
       if (['CONFIRMADO', 'PREPARANDO', 'EMPACADO'].indexOf(est) > -1) cnt.despachar++;
       if (est === 'DESPACHADO' || est === 'EN_RUTA') {
         cnt.camino++;
-        if (horas > 72) al.push({ n: 'amarillo', ic: 'truck', t: 'Sin entregar hace ' + Math.round(horas / 24) + ' días · ' + f[PED.ID], d: nom, a: { t: 'chat', tel: tel } });
+        if (horas > 72) al.push({ n: 'amarillo', ic: 'truck', t: 'Sin entregar hace ' + Math.round(horas / 24) + ' días · ' + f[PED.ID], d: nom, a: { t: 'chat', tel: tel }, id: String(f[PED.ID]), est: est, nom: nom, tel: tel });
       }
     });
   }

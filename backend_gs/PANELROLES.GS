@@ -263,7 +263,7 @@ function panelEquipo_(ses) {
 }
 
 function panelUsuarioGuardar_(d, ses) {
-  requierePerm_(ses, 'equipo.gestionar');
+  requiereAdmin_(ses)
   const esAdmin = ses.j === 'admin';
   const u = limpiar_(d.u, 32).toLowerCase().replace(/[^a-z0-9._-]/g, '');
   const n = limpiar_(d.n, 50);
@@ -306,7 +306,7 @@ function panelUsuarioGuardar_(d, ses) {
 }
 
 function panelDelegar_(d, ses) {
-  requierePerm_(ses, 'permisos.delegar');
+  requiereAdmin_(ses)
   const esAdmin = ses.j === 'admin';
   const u = String(d.u || '').trim().toLowerCase();
   const extraIn = (d.extra && typeof d.extra === 'object') ? d.extra : {};
@@ -341,7 +341,7 @@ function panelDelegar_(d, ses) {
 }
 
 function panelRolGuardar_(d, ses) {
-  requierePerm_(ses, 'roles.editar');
+  requiereAdmin_(ses)
   const id = String(d.id || '').trim();
   if (!id || id === 'admin') throw new Error('Ese perfil no se puede modificar.');
   const perms = (Array.isArray(d.perms) ? d.perms : []).filter(function (k) { return PERMISOS_VALIDOS.indexOf(k) > -1; });

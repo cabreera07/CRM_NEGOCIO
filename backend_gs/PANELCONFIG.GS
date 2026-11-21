@@ -105,6 +105,7 @@ function disenoValidar_(c) {
 }
 
 function disenoGuardar_(d, ses) {
+  requiereAdmin_(ses)
   const limpio = disenoValidar_(d.cfg || {});
   const h = hojaConfig_();
   const ahora = new Date();
@@ -131,6 +132,7 @@ function carpetaDiseno_() {
 
 // Sube el logo o un fondo a Drive (enlace público de solo lectura) y devuelve su id
 function disenoImagen_(d, ses) {
+  requiereAdmin_(ses);
   const tipo = d.tipo === 'logo' ? 'logo' : 'fondo';
   const mime = d.mime === 'image/png' ? 'image/png' : 'image/jpeg';
   const b64 = String(d.b64 || '');
