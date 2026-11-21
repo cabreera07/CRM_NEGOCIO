@@ -2,28 +2,34 @@
    Aplica la configuración global (hoja Config_Global) a toda la app.
    Guarda una copia en localStorage: al abrir, el diseño aparece al instante. */
 const Tema = (function () {
-  const DEF = {
+    const DEF = {
     negocio: 'Mi Tienda', eslogan: 'Centro de atención',
     loginTitulo: 'Panel de atención', loginTexto: 'Entra con tu usuario y PIN',
     logo: '', logoForma: 'redondeado',
-    modo: 'oscuro', acento: 'azul', colorA: '#22d3ff', colorB: '#3b82f6',
-    fondoLogin: { t: 'preset', v: 'aurora' }, fondoApp: { t: 'preset', v: 'aurora' }, fondosSec: {},
-    blur: 18, opacidad: 55, velo: 40, radio: 18, brillo: true,
-    fuente: 'sistema', anim: 'equilibrado', permitirModo: true
+    modo: 'oscuro', acento: 'azul', colorA: '#3f7ad9', colorB: '#2f5fb0',
+    fondoLogin: { t: 'preset', v: 'pizarra' }, fondoApp: { t: 'preset', v: 'pizarra' }, fondosSec: {},
+    blur: 10, opacidad: 88, velo: 40, radio: 12, brillo: false,
+    fuente: 'inter', anim: 'equilibrado', permitirModo: true,
+    neon: false, densidad: 'comoda',
+    vistaPedidos: 'lista', vistaClientes: 'tarjetas', vistaInventario: 'tarjetas',
+    saludo: true, reloj: true, formatoHora: '12h', confirmarSalir: true,
+    frases: 'siempre', frasesTxt: ''
   };
   const ACENTOS = {
-    azul: ['#22d3ff', '#3b82f6'], violeta: ['#b79bff', '#7c3aed'], esmeralda: ['#34e8b0', '#10b981'],
-    ambar: ['#ffc247', '#f97316'], rosa: ['#ff7ab8', '#ec4899']
+    azul: ['#3f7ad9', '#2f5fb0'], violeta: ['#7b72d6', '#5b52b5'], esmeralda: ['#2fa37a', '#1f7d5c'],
+    ambar: ['#d99a2b', '#b8761a'], rosa: ['#c9577f', '#a03a60'], pizarra: ['#7c8aa0', '#5a6980'], vino: ['#b5475f', '#8f3148']
   };
   const PRESETS = {
-    aurora:       { n: 'Aurora', anim: true, claro: false, css: 'radial-gradient(60% 50% at 15% 20%,rgba(34,211,255,.40),transparent 60%),radial-gradient(55% 45% at 85% 15%,rgba(124,58,237,.36),transparent 60%),radial-gradient(60% 55% at 70% 92%,rgba(16,185,129,.30),transparent 60%),#060b1c' },
-    marmol:       { n: 'Mármol oscuro', anim: false, claro: false, css: 'linear-gradient(115deg,transparent 38%,rgba(255,255,255,.06) 44%,transparent 50%),linear-gradient(62deg,transparent 56%,rgba(255,255,255,.045) 61%,transparent 67%),radial-gradient(90% 70% at 30% 15%,#272c36,#0a0c11 75%)' },
-    medianoche:   { n: 'Medianoche', anim: false, claro: false, css: 'radial-gradient(90% 70% at 50% -10%,#17306b 0%,#070d22 60%,#03050f 100%)' },
-    arquitectura: { n: 'Arquitectura', anim: false, claro: false, css: 'radial-gradient(70% 30% at 50% 100%,rgba(34,211,255,.28),transparent 70%),repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 1px,transparent 1px 120px),linear-gradient(180deg,#05070d 0%,#0b1224 55%,#13203f 100%)' },
-    oceano:       { n: 'Océano', anim: true, claro: false, css: 'radial-gradient(70% 60% at 20% 10%,rgba(45,212,191,.38),transparent 60%),radial-gradient(70% 60% at 90% 80%,rgba(14,116,144,.55),transparent 60%),#04141f' },
-    atardecer:    { n: 'Atardecer', anim: true, claro: false, css: 'radial-gradient(70% 60% at 85% 10%,rgba(251,146,60,.42),transparent 60%),radial-gradient(70% 60% at 10% 85%,rgba(168,85,247,.42),transparent 60%),#140a1f' },
+    pizarra:      { n: 'Pizarra', anim: false, claro: false, css: 'linear-gradient(180deg,#141920 0%,#0e1116 100%)' },
+    niebla:       { n: 'Niebla (claro)', anim: false, claro: true, css: 'linear-gradient(180deg,#f7f8fa,#e9ecf1)' },
     grafito:      { n: 'Grafito', anim: false, claro: false, css: 'radial-gradient(80% 60% at 50% 0%,#2a2f3a,#0e1116 70%)' },
-    esmeralda:    { n: 'Esmeralda', anim: true, claro: false, css: 'radial-gradient(70% 60% at 20% 15%,rgba(16,185,129,.40),transparent 60%),radial-gradient(60% 50% at 85% 85%,rgba(34,211,255,.24),transparent 60%),#04130f' },
+    medianoche:   { n: 'Medianoche', anim: false, claro: false, css: 'radial-gradient(90% 70% at 50% -10%,#16233d 0%,#0b111c 60%,#07090f 100%)' },
+    marmol:       { n: 'Mármol oscuro', anim: false, claro: false, css: 'linear-gradient(115deg,transparent 38%,rgba(255,255,255,.05) 44%,transparent 50%),linear-gradient(62deg,transparent 56%,rgba(255,255,255,.035) 61%,transparent 67%),radial-gradient(90% 70% at 30% 15%,#272c36,#0a0c11 75%)' },
+    arquitectura: { n: 'Arquitectura', anim: false, claro: false, css: 'radial-gradient(70% 30% at 50% 100%,rgba(120,150,200,.12),transparent 70%),repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 1px,transparent 1px 120px),linear-gradient(180deg,#0c0f14 0%,#121821 100%)' },
+    aurora:       { n: 'Aurora suave', anim: true, claro: false, css: 'radial-gradient(60% 50% at 15% 20%,rgba(63,122,217,.16),transparent 60%),radial-gradient(55% 45% at 85% 15%,rgba(109,111,214,.12),transparent 60%),#0e1116' },
+    oceano:       { n: 'Océano', anim: true, claro: false, css: 'radial-gradient(70% 60% at 20% 10%,rgba(45,140,150,.18),transparent 60%),#0a1519' },
+    atardecer:    { n: 'Atardecer', anim: true, claro: false, css: 'radial-gradient(70% 60% at 85% 10%,rgba(200,120,70,.16),transparent 60%),radial-gradient(70% 60% at 10% 85%,rgba(120,90,170,.14),transparent 60%),#15111a' },
+    esmeralda:    { n: 'Esmeralda', anim: true, claro: false, css: 'radial-gradient(70% 60% at 20% 15%,rgba(47,163,122,.16),transparent 60%),#0a1411' },
     minimal:      { n: 'Minimal claro', anim: false, claro: true, css: 'radial-gradient(80% 60% at 20% 0%,#ffffff,#e9f0ff 60%,#dbe6fb 100%)' }
   };
   const FUENTES = {
@@ -123,13 +129,26 @@ const Tema = (function () {
     }
   }
 
+  function pref(k) { try { return JSON.parse(localStorage.getItem('pref_v1') || '{}')[k]; } catch (e) { return undefined; } }
+  function setPref(k, v) {
+    try {
+      const o = JSON.parse(localStorage.getItem('pref_v1') || '{}');
+      if (v === '' || v === null || v === undefined) delete o[k]; else o[k] = v;
+      localStorage.setItem('pref_v1', JSON.stringify(o));
+    } catch (e) {}
+    pintar(cfgActual());
+  }
+
   function pintar(cfg) {
     const b = document.body, s = b.style, modo = modoEf(cfg), ahorro = cfg.anim === 'ahorro';
     b.dataset.modo = modo; b.dataset.anim = cfg.anim;
+    b.dataset.neon = cfg.neon ? '1' : '0';
+    b.dataset.dens = pref('densidad') || cfg.densidad || 'comoda';
     const ac = cfg.acento === 'custom' ? [cfg.colorA, cfg.colorB] : (ACENTOS[cfg.acento] || ACENTOS.azul);
     const a = rgb(ac[0]);
     s.setProperty('--pri', ac[0]); s.setProperty('--pri2', ac[1]); s.setProperty('--pri-rgb', a.join(','));
-    s.setProperty('--glow', 'rgba(' + a.join(',') + ',.30)'); s.setProperty('--glow2', 'rgba(' + rgb(ac[1]).join(',') + ',.22)');
+    s.setProperty('--glow', 'rgba(' + a.join(',') + ',' + (cfg.neon ? '.30' : '.10') + ')');
+    s.setProperty('--glow2', 'rgba(' + rgb(ac[1]).join(',') + ',' + (cfg.neon ? '.22' : '.06') + ')');
     s.setProperty('--pri-tx', (lum(ac[0]) + lum(ac[1])) / 2 > 0.3 ? '#04121f' : '#ffffff');
     s.setProperty('--blur', (ahorro ? 0 : cfg.blur) + 'px');
     s.setProperty('--card-a', (ahorro ? Math.max(cfg.opacidad, 90) : cfg.opacidad) / 100);
@@ -170,6 +189,7 @@ const Tema = (function () {
   pintar(res.cfg);
 
   return {
+    pref: pref, setPref: setPref,
     DEF: DEF, ACENTOS: ACENTOS, PRESETS: PRESETS, FUENTES: FUENTES, SECCIONES: SEC,
     clon: clon, aplicar: aplicar, previa: previa, revertir: revertir, seccion: seccion, modoLogin: modoLogin, setModo: setModo,
     cfg: cfgActual, guardada: () => res.cfg, modo: () => modoEf(cfgActual()), urlImg: urlImg,

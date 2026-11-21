@@ -12,8 +12,8 @@ let TOKEN='', ME=null, ADMIN=false, ESTADOS=[], RAPIDAS=[], TAB='inicio', TORRE=
 let PEDIDOS=[], PRODS=[], CLIENTES=[], CHATS=[], CHAT=null, POLL_BUSY=false, TICK=0, PREV_SL=null;
 let FCHAT='todos', QCHAT='';
 const PF = { estado:'activos', pago:'todos', muni:'todos', rango:'todos', q:'', orden:'recientes', vista:'lista' };
-const CF = { seg:'todos', q:'', orden:'gasto' };
-const IF = { q:'', f:'todos' };
+const CF = { seg:'todos', q:'', orden:'gasto', vista:'tarjetas' };
+const IF = { q:'', f:'todos', vista:'tarjetas' };
 const MEDIA = {}, MEDIA_PEND = {};
 let SONIDO = true;
 try { SONIDO = localStorage.getItem('sonido') !== '0'; } catch (e) {}
@@ -31,6 +31,103 @@ function skeleton() { return '<div class="g g2">' + [1,2,3,4].map(() => '<div cl
 function avColor(s) { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) % 360; return 'hsl(' + h + ' 85% 62%)'; }
 function avatar(nom) { const ini = (String(nom).replace(/[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ]/g,'')[0] || '#').toUpperCase(); return '<div class="av" style="background:' + avColor(nom) + ';color:#06101f">' + esc(ini) + '</div>'; }
 
+/* ================= Preferencias personales, saludo, reloj y frases ================= */
+const P = k => { const v = Tema.pref(k); return (v !== undefined && v !== null && v !== '') ? v : Tema.cfg()[k]; };
+
+const FRASES = [
+  'Un buen servicio empieza con una respuesta a tiempo.',
+  'Cada pedido bien entregado es un cliente que vuelve.',
+  'La constancia le gana al talento cuando el talento no es constante.',
+  'Haz hoy lo que tu yo de mañana te agradecerá.',
+  'Lo pequeño bien hecho se convierte en grande.',
+  'Un cliente atendido con calidez es la mejor publicidad.',
+  'No tienes que ser perfecto, tienes que ser constante.',
+  'El orden de hoy es la tranquilidad de mañana.',
+  'Trabajar en equipo es multiplicar lo que cada uno sabe hacer.',
+  'Los detalles no son detalles: hacen la diferencia.',
+  'Respira, prioriza y avanza una tarea a la vez.',
+  'Cuando todo parezca urgente, empieza por lo importante.',
+  'Cada mensaje respondido es una venta que puede nacer.',
+  'La disciplina es hacer lo que toca aunque no haya ganas.',
+  'Un paso a la vez también llega lejos.',
+  'Hoy es buen día para mejorar algo que ayer salió regular.',
+  'La confianza se construye cumpliendo lo que se promete.',
+  'Tu trabajo ordena el día de muchas personas.',
+  'Pregunta, escucha, resuelve. Así de simple.',
+  'Los buenos resultados son la suma de días ordinarios bien trabajados.',
+  'Gracias por cuidar cada detalle del negocio.',
+  'Un equipo coordinado vale más que mil esfuerzos aislados.',
+  'Lo que se mide, se mejora.',
+  'Un problema bien explicado ya está medio resuelto.'
+];
+const NOTA_DIA = { 0: 'Domingo: gracias por estar disponible.', 1: 'Empieza la semana con buena energía.', 5: 'Último empujón de la semana.', 6: 'Sábado: ritmo tranquilo y buen servicio.' };
+
+function ahoraGT(op) { return new Date().toLocaleString('es-GT', Object.assign({ timeZone: 'America/Guatemala' }, op)); }
+function textoHora() { return ahoraGT({ hour: 'numeric', minute: '2-digit', hour12: P('formatoHora') !== '24h' }); }
+function textoFecha(largo) {
+  return ahoraGT(largo ? { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' } : { weekday: 'short', day: 'numeric', month: 'short' });
+}
+function saludoHora() {
+  const h = Number(ahoraGT({ hour: 'numeric', hourCycle: 'h23' })) % 24;
+  return h >= 5 && h < 12 ? 'Buenos días' : (h >= 12 && h < 19 ? 'Buenas tardes' : 'Buenas noches');
+}
+function fraseDelMomento() {
+  const custom = String(Tema.cfg().frasesTxt || '').split(/\s*[|\n]\s*/).filter(Boolean);
+  const lista = custom.length ? custom : FRASES;
+  const d = new Date(), slot = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate() + '-' + Math.floor(d.getHours() / 3);
+  let h = 0; for (const ch of ((ME ? ME.u : '') + slot)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return lista[h % lista.length];
+}
+function bloqueBienvenida() {
+  const sal = P('saludo'), rel = P('reloj'), fr = P('frases');
+  if (!sal && !rel && fr !== 'siempre') return '';
+  const nombre = String((ME && ME.n) || '').split(' ')[0];
+  const f = textoFecha(true), nota = NOTA_DIA[new Date().getDay()] || '';
+  return '<div class="card hello anim"><div class="hrow"><div>' +
+    (sal ? '<div class="hsal">' + saludoHora() + ', <b>' + esc(nombre) + '</b></div><div class="mut">' + esc(f.charAt(0).toUpperCase() + f.slice(1)) + (nota ? ' · ' + esc(nota) : '') + '</div>' : '') +
+    '</div>' + (rel ? '<div class="hclock" id="hclock">' + esc(textoHora()) + '</div>' : '') + '</div>' +
+    (fr === 'siempre' ? '<div class="hq">“' + esc(fraseDelMomento()) + '”</div>' : '') + '</div>';
+}
+function actualizarReloj() {
+  const h = $('#hreloj'); if (h) h.textContent = (TOKEN && P('reloj')) ? textoFecha(false) + ' · ' + textoHora() : '';
+  const c = $('#hclock'); if (c) c.textContent = textoHora();
+}
+setInterval(actualizarReloj, 15000);
+function frasesOcasional() {
+  if (!TOKEN || P('frases') !== 'ocasional') return;
+  let ult = 0; try { ult = Number(sessionStorage.getItem('fr_t')) || 0; } catch (e) {}
+  if (Date.now() - ult < 90 * 60000) return;
+  try { sessionStorage.setItem('fr_t', String(Date.now())); } catch (e) {}
+  const t = $('#toast'); t.textContent = '💡 ' + fraseDelMomento(); t.className = 'frase'; t.style.display = 'block';
+  clearTimeout(toast.h); toast.h = setTimeout(() => { t.style.display = 'none'; }, 8000);
+}
+
+async function pedirSalir() {
+  if (!Tema.cfg().confirmarSalir) return cerrarSesion('');
+  const nombre = String((ME && ME.n) || '').split(' ')[0];
+  const r = await modal({ titulo: 'Cerrar sesión', texto: '¿Seguro que quieres salir' + (nombre ? ', ' + nombre : '') + '? Tendrás que volver a ingresar tu usuario y PIN.', ok: 'Salir', peligro: true, sinFoco: true });
+  if (r) cerrarSesion('');
+}
+
+async function abrirPrefs() {
+  const bs = k => { const v = Tema.pref(k); return v === true ? '1' : (v === false ? '0' : ''); };
+  const pre = [['', 'Predeterminado']];
+  const r = await modal({ titulo: 'Mis preferencias', texto: 'Solo cambian en este dispositivo. “Predeterminado” usa lo que definió el administrador.', campos: [
+    { id: 'vistaPedidos', label: 'Vista de pedidos', tipo: 'select', opciones: pre.concat([['lista', 'Lista'], ['tablero', 'Tablero'], ['tabla', 'Tabla']]), valor: Tema.pref('vistaPedidos') || '' },
+    { id: 'vistaClientes', label: 'Vista de clientes', tipo: 'select', opciones: pre.concat([['tarjetas', 'Tarjetas'], ['tabla', 'Tabla']]), valor: Tema.pref('vistaClientes') || '' },
+    { id: 'vistaInventario', label: 'Vista de inventario', tipo: 'select', opciones: pre.concat([['tarjetas', 'Tarjetas'], ['tabla', 'Tabla']]), valor: Tema.pref('vistaInventario') || '' },
+    { id: 'densidad', label: 'Densidad', tipo: 'select', opciones: pre.concat([['comoda', 'Cómoda'], ['compacta', 'Compacta']]), valor: Tema.pref('densidad') || '' },
+    { id: 'saludo', label: 'Saludo y fecha', tipo: 'select', opciones: pre.concat([['1', 'Mostrar'], ['0', 'Ocultar']]), valor: bs('saludo') },
+    { id: 'reloj', label: 'Reloj', tipo: 'select', opciones: pre.concat([['1', 'Mostrar'], ['0', 'Ocultar']]), valor: bs('reloj') },
+    { id: 'formatoHora', label: 'Formato de hora', tipo: 'select', opciones: pre.concat([['12h', '12 horas'], ['24h', '24 horas']]), valor: Tema.pref('formatoHora') || '' },
+    { id: 'frases', label: 'Frases motivadoras', tipo: 'select', opciones: pre.concat([['siempre', 'En la bienvenida'], ['ocasional', 'Aviso ocasional'], ['nunca', 'No mostrar']]), valor: Tema.pref('frases') || '' }
+  ], ok: 'Guardar' });
+  if (!r) return;
+  ['vistaPedidos', 'vistaClientes', 'vistaInventario', 'densidad', 'formatoHora', 'frases'].forEach(k => Tema.setPref(k, r[k]));
+  ['saludo', 'reloj'].forEach(k => Tema.setPref(k, r[k] === '1' ? true : (r[k] === '0' ? false : '')));
+  PF.vista = P('vistaPedidos'); CF.vista = P('vistaClientes'); IF.vista = P('vistaInventario');
+  actualizarReloj(); toast('✅ Preferencias guardadas'); vistaMas();
+}
 
 
 function ping() {
@@ -45,18 +142,21 @@ function ping() {
 }
 
 async function api(accion, datos) {
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({
-      origen: 'panel',
-      token: TOKEN,
-      accion: accion,
-      datos: datos || {}
-    })
-  });
+  let res;
+  try {
+    res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ origen: 'panel', token: TOKEN, accion: accion, datos: datos || {} })
+    });
+  } catch (e) {
+    throw new Error('Sin conexión con el servidor. Revisa API_URL y que la implementación sea "Cualquier persona".');
+  }
   if (!res.ok) throw new Error('Error de red (' + res.status + ')');
-  const json = await res.json();
+  const txt = await res.text();
+  let json;
+  try { json = JSON.parse(txt); }
+  catch (e) { throw new Error('El servidor no devolvió JSON (¿falta autorizar permisos o implementar nueva versión?).'); }
   if (!json.ok) {
     const m = String(json.error || 'Error de conexión').replace(/^Error:\s*/, '');
     if (m.indexOf('SESION') > -1) cerrarSesion('Tu sesión venció. Entra otra vez.');
@@ -163,6 +263,9 @@ function cerrarSesion(msg) {
   Tema.modoLogin(true);
   $('#lg-err').textContent = msg || ''; $('#pin').value = '';
 }
+
+  PF.vista = P('vistaPedidos'); CF.vista = P('vistaClientes'); IF.vista = P('vistaInventario');
+  actualizarReloj();
 
 function armarNav() {
   const vis = NAV.filter(n => n[0] === 'inicio' || n[0] === 'mas' ||
@@ -278,6 +381,7 @@ async function vistaInicioAdmin(quieto) {
   const eq = e.equipo;
 
   pintar(
+    bloqueBienvenida() +
     '<div class="chips">' + PERIODOS.map(p => '<button class="chip' + (p[0] === PERIODO ? ' on' : '') + '" data-p="' + p[0] + '">' + p[1] + '</button>').join('') + '</div>' +
     '<div class="g g4">' +
       kp('💰 Ventas', k.ventas, 'q', dl(k.dVentas) + 'vs período anterior') +
@@ -314,7 +418,7 @@ async function vistaInicioOp(quieto) {
   TORRE = t; actualizarBadgeInicio();
   const c = t.cnt;
   const big = (e, n, lab, go) => '<div class="card hv big anim" data-go="' + go + '"><div class="em">' + e + '</div><p class="v" data-n="' + n + '" data-f="n">0</p><p class="l">' + lab + '</p></div>';
-  pintar('<p class="mut" style="margin-bottom:12px">Hola, ' + esc(ME.n) + ' 👋 Esto es lo que necesita atención ahora.</p>' +
+    pintar(bloqueBienvenida() +
     '<div class="g g2">' + big('📸', c.comprobantes, 'Comprobantes por verificar', 'pagos') + big('💬', c.sinResp, 'Chats sin responder', 'sinresp') +
       big('📦', c.despachar, 'Por despachar', 'despacho') + big('🚚', c.camino, 'En camino', 'ruta') + '</div>' + htmlTorre(t));
   $$('[data-go]').forEach(x => {
@@ -424,9 +528,10 @@ function renderAviso() {
   const a = $('#aviso'); if (!a || !CHAT) return;
   const ab = ventanaAbierta();
   const sinEnv = !puede('chats.enviar');
-$('#txt').disabled = !ab || sinEnv; $('#send').disabled = !ab || sinEnv;
-if ($('#cmodo')) $('#cmodo').classList.toggle('hide', !puede('chats.modo'));
-if (sinEnv) { a.className = 'aviso'; a.textContent = 'Modo solo lectura: no tienes permiso para enviar mensajes.'; return; }
+  $('#txt').disabled = !ab || sinEnv; $('#send').disabled = !ab || sinEnv;
+  if (!$('#cmodo')) return;
+  $('#cmodo').classList.toggle('hide', !puede('chats.modo'));
+  if (sinEnv) { a.className = 'aviso'; a.textContent = 'Modo solo lectura: no tienes permiso para enviar mensajes.'; return; }
   $('#txt').disabled = !ab; $('#send').disabled = !ab;
   if (!ab) { a.className = 'aviso red'; a.textContent = '⏰ Pasaron más de 24 h desde el último mensaje del cliente. WhatsApp no permite enviar texto libre; solo plantillas aprobadas.'; }
   else if (CHAT.modo !== 'HUMANO') { a.className = 'aviso'; a.textContent = '🤖 El bot está atendiendo. Si respondes, tomas la conversación y el bot se calla.'; }
@@ -572,12 +677,7 @@ function armarPedidos() {
       sel('f_pago', PF.pago, [['todos','💳 Todos los pagos'],['link','Link / transferencia'],['efectivo','Contra entrega'],['puntos','Pagado con puntos']]) +
       sel('f_muni', PF.muni, [['todos','📍 Todos los municipios']].concat(munis.map(m => [m, m]))) +
       sel('f_orden', PF.orden, [['recientes','↓ Más recientes'],['antiguos','↑ Más antiguos'],['total','💰 Mayor total']]) +
-    '</div><div class="top" style="margin:10px 0;align-items:center"><span class="mut" id="pres"></span><div style="display:flex;gap:6px"><button class="chip" data-v="lista">☰ Lista</button><button class="chip" data-v="tablero">▦ Tablero</button><button class="chip" id="plimpiar">✕ Limpiar</button></div></div><div id="plista"></div>');
-  $('#busq').oninput = function () { PF.q = this.value; renderPedLista(); };
-  [['f_rango','rango'],['f_pago','pago'],['f_muni','muni'],['f_orden','orden']].forEach(p => { $('#' + p[0]).onchange = function () { PF[p[1]] = this.value; renderPedLista(); }; });
-  $$('[data-v]').forEach(c => { c.onclick = () => { PF.vista = c.dataset.v; renderPedLista(); }; });
-  $('#plimpiar').onclick = () => { Object.assign(PF, { estado:'activos', pago:'todos', muni:'todos', rango:'todos', q:'', orden:'recientes' }); armarPedidos(); };
-  $('#plista').onclick = accionPedido;
+    '</div><div class="top" style="margin:10px 0;align-items:center"><span class="mut" id="pres"></span><div style="display:flex;gap:6px"><button class="chip" data-v="lista">☰ Lista</button><button class="chip" data-v="tablero">▦ Tablero</button><button class="chip" data-v="tabla">▤ Tabla</button><button class="chip" id="plimpiar">🧹 Limpiar filtros</button></div></div><div id="plista"></div>');
     ligarDnD($('#plista'));
   renderPedLista();
 }
@@ -589,7 +689,18 @@ function renderPedLista() {
   if (PF.orden === 'antiguos') lista = lista.slice().reverse();
   else if (PF.orden === 'total') lista = lista.slice().sort((a, b) => b.totalN - a.totalN);
   $('#pres').textContent = lista.length + ' pedido(s) · ' + Q(lista.reduce((a, p) => a + p.totalN, 0));
-  $('#plista').innerHTML = !lista.length ? '<div class="empty">No hay pedidos con estos filtros 🎉</div>' : (PF.vista === 'tablero' ? tableroHtml(lista) : lista.map(cardPedido).join(''));
+  $('#plista').innerHTML = !lista.length ? '<div class="empty">No hay pedidos con estos filtros 🎉</div>'
+    : (PF.vista === 'tablero' ? tableroHtml(lista) : PF.vista === 'tabla' ? tablaPedidos(lista) : lista.map(cardPedido).join(''));
+}
+function tablaPedidos(lista) {
+  return '<div class="card tblwrap"><table class="tbl"><thead><tr><th>Pedido</th><th>Fecha</th><th>Cliente</th><th>Municipio</th><th>Pago</th><th class="r">Total</th><th>Estado</th><th></th></tr></thead><tbody>' +
+    lista.map(p => {
+      const sig = FLUJO[p.estado], id = esc(p.id);
+      return '<tr><td><b>' + id + '</b></td><td>' + esc(p.fecha) + '</td><td>' + esc(p.nombre || ('+' + p.tel)) + '</td><td>' + esc(p.muni) + '</td><td>' + esc(p.pago) + '</td>' +
+        '<td class="r"><b>' + esc(p.total) + '</b></td><td><span class="badge b-' + esc(p.estado) + '">' + esc(p.estado.replace('_', ' ')) + '</span></td>' +
+        '<td class="acc">' + (sig ? '<button class="btn sm" data-a="sig" data-id="' + id + '">' + SIG_TXT[p.estado] + '</button>' : '') +
+        '<button class="btn sec sm" data-a="otro" data-id="' + id + '">⋯</button><button class="btn sec sm" data-a="chat" data-id="' + id + '">💬</button></td></tr>';
+    }).join('') + '</tbody></table></div>';
 }
 function cardPedido(p) {
   const sig = FLUJO[p.estado], id = esc(p.id);
@@ -648,9 +759,9 @@ function accionPedido(e) {
   if (x.dataset.a === 'etq') etiqueta(p);
 }
 async function elegirEstado(p) {
-    const opts = ESTADOS.filter(e => e !== p.estado && (e !== 'CANCELADO' || puede('pedidos.cancelar')) && (!(p.estado === 'PENDIENTE_PAGO' && e === 'CONFIRMADO') || puede('pagos.verificar')));
+  const opts = ESTADOS.filter(e => e !== p.estado && (e !== 'CANCELADO' || puede('pedidos.cancelar')) && (!(p.estado === 'PENDIENTE_PAGO' && e === 'CONFIRMADO') || puede('pagos.verificar')));
   const r = await modal({ titulo: 'Cambiar estado', texto: 'Pedido ' + p.id + ' · ahora está en ' + p.estado.replace('_', ' '),
-    campos: [{ id: 'estado', label: 'Nuevo estado', tipo: 'select', opciones: ESTADOS.filter(e => e !== p.estado) }], ok: 'Continuar' });
+    campos: [{ id: 'estado', label: 'Nuevo estado', tipo: 'select', opciones: opts }], ok: 'Continuar' });
   if (r) cambiarEstado(p, r.estado);
 }
 async function cambiarEstado(p, estado) {
@@ -712,11 +823,23 @@ async function vistaClientes() {
   renderCli();
 }
 function renderCli() {
-  $('#cchips').innerHTML = SEGS.map(s => '<button class="chip' + (s[0] === CF.seg ? ' on' : '') + '" data-s="' + s[0] + '">' + s[1] + '</button>').join('');
-  $$('#cchips .chip').forEach(c => { c.onclick = () => { CF.seg = c.dataset.s; renderCli(); }; });
+  $('#cchips').innerHTML = SEGS.map(s => '<button class="chip' + (s[0] === CF.seg ? ' on' : '') + '" data-s="' + s[0] + '">' + s[1] + '</button>').join('') +
+    '<span style="flex:1"></span>' + [['tarjetas', '▦ Tarjetas'], ['tabla', '▤ Tabla']].map(v => '<button class="chip' + (CF.vista === v[0] ? ' on' : '') + '" data-cv="' + v[0] + '">' + v[1] + '</button>').join('');
+  $$('#cchips .chip[data-s]').forEach(c => { c.onclick = () => { CF.seg = c.dataset.s; renderCli(); }; });
+  $$('#cchips .chip[data-cv]').forEach(c => { c.onclick = () => { CF.vista = c.dataset.cv; renderCli(); }; });
   const lista = CLIENTES.filter(pasaCli).sort((a, b) => CF.orden === 'compras' ? b.compras - a.compras : CF.orden === 'puntos' ? b.puntos - a.puntos : CF.orden === 'recientes' ? b.regTs - a.regTs : b.t - a.t);
   $('#cres').textContent = lista.length + ' cliente(s) · ' + lista.reduce((a, c) => a + c.puntos, 0).toLocaleString('en-US') + ' puntos en circulación';
-  $('#clista').innerHTML = lista.slice(0, 120).map(c => '<div class="card hv"><div class="top" style="align-items:center"><div style="display:flex;gap:10px;align-items:center;min-width:0">' + avatar(c.nombre || c.tel) + '<div style="min-width:0"><div class="id nm">' + esc(c.nombre || 'Sin nombre') + '</div><div class="mut">+' + esc(c.tel) + '</div></div></div><span class="badge">' + c.compras + ' compra(s)</span></div>' +
+  const cont = $('#clista');
+  if (CF.vista === 'tabla') {
+    cont.className = '';
+    cont.innerHTML = lista.length ? '<div class="card tblwrap"><table class="tbl"><thead><tr><th>Cliente</th><th>Teléfono</th><th class="r">Compras</th><th class="r">Puntos</th><th class="r">Total</th><th>En proceso</th><th>Registro</th><th></th></tr></thead><tbody>' +
+      lista.slice(0, 300).map(c => '<tr><td><b>' + esc(c.nombre || 'Sin nombre') + '</b></td><td>+' + esc(c.tel) + '</td><td class="r">' + c.compras + '</td><td class="r">' + c.puntos + '</td><td class="r">' + Q(c.t) + '</td><td>' + (c.pend || '—') + '</td><td>' + esc(c.registro) + '</td>' +
+        '<td class="acc"><button class="btn sm" data-chat="' + esc(c.tel) + '">💬 Chat</button></td></tr>').join('') + '</tbody></table></div>'
+      : '<div class="empty">No hay clientes con estos filtros</div>';
+    return;
+  }
+  cont.className = 'g g3';
+  cont.innerHTML = lista.slice(0, 120).map(c => '<div class="card hv"><div class="top" style="align-items:center"><div style="display:flex;gap:10px;align-items:center;min-width:0">' + avatar(c.nombre || c.tel) + '<div style="min-width:0"><div class="id nm">' + esc(c.nombre || 'Sin nombre') + '</div><div class="mut">+' + esc(c.tel) + '</div></div></div><span class="badge">' + c.compras + ' compra(s)</span></div>' +
     '<div class="mut" style="margin-top:8px">⭐ ' + c.puntos + ' puntos · 💰 ' + Q(c.t) + (c.pend ? ' · 📦 ' + c.pend + ' en proceso' : '') + '</div><div class="mut">🎁 ' + esc(c.proxima) + (c.registro ? ' · Registro ' + esc(c.registro) : '') + '</div>' +
     '<div class="row"><button class="btn" data-chat="' + esc(c.tel) + '">💬 Abrir chat</button><a class="btn sec" href="https://wa.me/' + esc(c.tel) + '" target="_blank" rel="noopener">WhatsApp</a></div></div>').join('') || '<div class="empty">No hay clientes con estos filtros</div>';
 }
@@ -734,6 +857,7 @@ function vistaMas() {
     ['diseno','🎨','Diseño y marca','Logo, fondos y colores para todos', puede('diseno.editar')],
     ['respaldo','💾','Respaldo ahora','Copia de la hoja en Drive', puede('respaldo.ejecutar')],
     ['modo','🌙','Modo ' + (Tema.modo() === 'claro' ? 'claro' : 'oscuro'),'Tu preferencia personal', Tema.cfg().permitirModo],
+    ['pref','👤','Mis preferencias','Vistas, reloj y saludo', true],
     ['sonido','🔔','Sonido', SONIDO ? 'Activado' : 'Apagado', true],
     ['salir','⎋','Cerrar sesión', rolEfectivo().n, true]
   ].filter(x => x[4]);
@@ -742,7 +866,8 @@ function vistaMas() {
     x.onclick = async () => {
       const t = x.dataset.t;
       if (['pagos','ruta','inventario','equipo','rapidas','diseno'].indexOf(t) > -1) return mostrarTab(t);
-      if (t === 'salir') return cerrarSesion('');
+      if (t === 'pref') return abrirPrefs();
+      if (t === 'salir') return pedirSalir();
       if (t === 'modo') { Tema.setModo(Tema.modo() === 'claro' ? 'oscuro' : 'claro'); return vistaMas(); }
       if (t === 'sonido') { SONIDO = !SONIDO; try { localStorage.setItem('sonido', SONIDO ? '1' : '0'); } catch (e) {} if (SONIDO) ping(); return vistaMas(); }
       if (t === 'respaldo') {
@@ -832,9 +957,11 @@ function armarInventario() {
   renderInv();
 }
 function renderInv() {
-  const fs = [['todos','Todos'],['bajo','Stock bajo'],['agotado','Agotados'],['oculto','Ocultos'],['sinfoto','Sin foto']];
-  $('#ichips').innerHTML = fs.map(f => '<button class="chip' + (f[0] === IF.f ? ' on' : '') + '" data-f2="' + f[0] + '">' + f[1] + '</button>').join('');
-  $$('#ichips .chip').forEach(c => { c.onclick = () => { IF.f = c.dataset.f2; renderInv(); }; });
+  const fs = [['todos', 'Todos'], ['bajo', 'Stock bajo'], ['agotado', 'Agotados'], ['oculto', 'Ocultos'], ['sinfoto', 'Sin foto']];
+  $('#ichips').innerHTML = fs.map(f => '<button class="chip' + (f[0] === IF.f ? ' on' : '') + '" data-f2="' + f[0] + '">' + f[1] + '</button>').join('') +
+    '<span style="flex:1"></span>' + [['tarjetas', '▦ Tarjetas'], ['tabla', '▤ Tabla']].map(v => '<button class="chip' + (IF.vista === v[0] ? ' on' : '') + '" data-iv="' + v[0] + '">' + v[1] + '</button>').join('');
+  $$('#ichips .chip[data-f2]').forEach(c => { c.onclick = () => { IF.f = c.dataset.f2; renderInv(); }; });
+  $$('#ichips .chip[data-iv]').forEach(c => { c.onclick = () => { IF.vista = c.dataset.iv; renderInv(); }; });
   const q = IF.q.toLowerCase();
   const lista = PRODS.filter(p => {
     if (IF.f === 'bajo' && !(p.stock > 0 && p.stock <= 5)) return false;
@@ -844,11 +971,36 @@ function renderInv() {
     return !q || (p.producto + ' ' + p.sku).toLowerCase().indexOf(q) > -1;
   });
   $('#ires').textContent = lista.length + ' producto(s)';
-  $('#ilista').innerHTML = lista.map(p => '<div class="card hv"><div class="top"><div class="mut">' + esc(p.sku) + '</div><span class="badge ' + (p.activo ? 'b-ENTREGADO' : 'b-CANCELADO') + '">' + (p.activo ? 'ACTIVO' : 'OCULTO') + '</span></div>' +
+  const cont = $('#ilista');
+  if (IF.vista === 'tabla') {
+    cont.className = '';
+    cont.innerHTML = lista.length ? '<div class="card tblwrap"><table class="tbl"><thead><tr><th>SKU</th><th>Producto</th><th class="r">Precio</th><th class="r">Stock</th><th>Visible</th><th></th></tr></thead><tbody>' +
+      lista.map(p => '<tr><td>' + esc(p.sku) + '</td><td><b>' + esc(p.producto) + '</b><div class="mut">' + esc(p.descripcion) + '</div></td><td class="r">' + Q(p.precio) + '</td>' +
+        '<td class="r"><span class="badge ' + (p.stock === 0 ? 'b-CANCELADO' : p.stock <= 5 ? 'b-PENDIENTE_PAGO' : 'b-ENTREGADO') + '">' + p.stock + '</span></td>' +
+        '<td><span class="badge ' + (p.activo ? 'b-ENTREGADO' : 'b-CANCELADO') + '">' + (p.activo ? 'ACTIVO' : 'OCULTO') + '</span></td>' +
+        '<td class="acc"><button class="btn sec sm" data-f="' + esc(p.sku) + '">' + (p.foto ? '📷 Cambiar' : '📷 Subir') + '</button><button class="btn sm" data-e="' + esc(p.sku) + '">Editar</button></td></tr>').join('') + '</tbody></table></div>'
+      : '<div class="empty">No hay productos con estos filtros</div>';
+    $$('#ilista [data-e]').forEach(b => { b.onclick = () => editarProducto(PRODS.filter(x => x.sku === b.dataset.e)[0]); });
+    return;
+  }
+  cont.className = 'g g3';
+  cont.innerHTML = lista.map(p => '<div class="card hv"><div class="top"><div class="mut">' + esc(p.sku) + '</div><span class="badge ' + (p.activo ? 'b-ENTREGADO' : 'b-CANCELADO') + '">' + (p.activo ? 'ACTIVO' : 'OCULTO') + '</span></div>' +
     '<label>Nombre<input class="i-nom" value="' + esc(p.producto) + '"></label><label>Descripción<input class="i-desc" value="' + esc(p.descripcion) + '"></label>' +
     '<div class="fgrid"><label>Precio<input class="i-precio" type="number" inputmode="decimal" step="0.01" min="0" value="' + esc(p.precio) + '"></label><label>Stock<input class="i-stock" type="number" inputmode="numeric" step="1" min="0" value="' + esc(p.stock) + '"></label></div>' +
     '<label>Visible en el catálogo<select class="i-activo"><option value="1"' + (p.activo ? ' selected' : '') + '>Sí</option><option value="0"' + (!p.activo ? ' selected' : '') + '>No</option></select></label>' +
     '<div class="row"><button class="btn sec" data-f="' + esc(p.sku) + '">' + (p.foto ? '📷 Cambiar foto' : '📷 Subir foto') + '</button><button class="btn" data-g="' + esc(p.sku) + '">Guardar</button></div></div>').join('') || '<div class="empty">No hay productos con estos filtros</div>';
+}
+async function editarProducto(p) {
+  if (!p) return;
+  const r = await modal({ titulo: 'Editar ' + p.sku, campos: [
+    { id: 'producto', label: 'Nombre', valor: p.producto }, { id: 'descripcion', label: 'Descripción', valor: p.descripcion },
+    { id: 'precio', label: 'Precio', tipo: 'number', modo: 'decimal', valor: p.precio }, { id: 'stock', label: 'Stock', tipo: 'number', modo: 'numeric', valor: p.stock },
+    { id: 'activo', label: 'Visible en el catálogo', tipo: 'select', opciones: [['1', 'Sí'], ['0', 'No']], valor: p.activo ? '1' : '0' }], ok: 'Guardar' });
+  if (!r) return;
+  busy(true);
+  try { await api('producto', { sku: p.sku, producto: r.producto, descripcion: r.descripcion, precio: r.precio, stock: r.stock, activo: r.activo === '1' }); toast('✅ Producto actualizado'); }
+  catch (e) { toast(e.message, 'err'); }
+  busy(false); vistaInventario();
 }
 function reducirImagen(file, max) {
   return new Promise((ok, fail) => {
@@ -894,6 +1046,7 @@ function vistaRapidas() {
 /* ================= Actualización automática ================= */
 setInterval(() => {
   if (!TOKEN || document.hidden || document.querySelector('.ov')) return;
+  frasesOcasional();
   TICK++;
   if (TAB === 'chats' && CHAT && puede('chats.ver')) pollChat(false);
   if (TICK % 3 === 0 && puede('chats.ver')) cargarChats().catch(() => {});
