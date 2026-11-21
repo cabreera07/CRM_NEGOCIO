@@ -856,6 +856,99 @@ function ctrlEstado(p) {
   '</select>';
 }
 
+function armarPedidos() {
+  const munis = Array.from(new Set(PEDIDOS.map(p => p.muni).filter(Boolean))).sort();
+  const sel = (id, val, opts) => '<select id="' + id + '">' + opts.map(o => '<option value="' + esc(o[0]) + '"' + (o[0] === val ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select>';
+  pintar('<input id="busq" type="search" placeholder="🔎 Buscar pedido, cliente, teléfono o producto" value="' + esc(PF.q) + '">' +
+    '<div class="chips" id="pchips" style="margin-top:10px"></div>' +
+    '<div class="fgrid">' +
+      sel('f_rango', PF.rango, [['todos','📅 Todas las fechas'],['hoy','Hoy'],['ayer','Ayer'],['7d','Últimos 7 días'],['30d','Últimos 30 días']]) +
+      sel('f_pago', PF.pago, [['todos','💳 Todos los pagos'],['link','Link / transferencia'],['efectivo','Contra entrega'],['puntos','Pagado con puntos']]) +
+      sel('f_muni', PF.muni, [['todos','📍 Todos los municipios']].concat(munis.map(m => [m, m]))) +
+      sel('f_orden', PF.orden, [['recientes','↓ Más recientes'],['antiguos','↑ Más antiguos'],['total','💰 Mayor total']]) +
+    '</div><div class="top" style="margin:10px 0;align-items:center"><span class="mut" id="pres"></span><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="chip" data-v="lista">☰ Lista</button><button class="chip" data-v="tablero">▦ Tablero</button><button class="chip" data-v="tabla">▤ Tabla</button><button class="chip" id="plimpiar">🧹 Limpiar filtros</button></div></div><div id="plista"></div>');
+
+  $('#busq').oninput = function () { PF.q = this.value; renderPedLista(); };
+  $('#f_rango').onchange = function () { PF.rango = this.value; renderPedLista(); };
+  $('#f_pago').onchange = function () { PF.pago = this.value; renderPedLista(); };
+  $('#f_muni').onchange = function () { PF.muni = this.value; renderPedLista(); };
+  $('#f_orden').onchange = function () { PF.orden = this.value; renderPedLista(); };
+  $$('[data-v]').forEach(c => { c.onclick = () => { PF.vista = c.dataset.v; renderPedLista(); }; });
+  $('#plimpiar').onclick = () => {
+    PF.estado = 'activos'; PF.pago = 'todos'; PF.muni = 'todos'; PF.rango = 'todos'; PF.q = ''; PF.orden = 'recientes';
+    armarPedidos();
+  };
+  $('#plista').onclick = accionPedido;
+  ligarDnD($('#plista'));
+  renderPedLista();
+}
+
+function renderPedLista() {
+  $('#pchips').innerHTML = ESTADO_FILTROS.map(f => '<button class="chip' + (f[0] === PF.estado ? ' on' : '') + '" data-f="' + f[0] + '">' + f[1] + '</button>').join('');
+  $$('#pchips .chip').forEach(c => { c.onclick = () => { PF.estado = c.dataset.f; renderPedLista(); }; });
+  $$('[data-v]').forEach(c => c.classList.toggle('on', c.dataset.v === PF.vista));
+  let lista = PEDIDOS.filter(pasaPed);
+  if (PF.orden === 'antiguos') lista = lista.slice().reverse();
+  else if (PF.orden === 'total') lista = lista.slice().sort((a, b) => b.totalN - a.totalN);
+  $('#pres').textContent = lista.length + ' pedido(s) · ' + Q(lista.reduce((a, p) => a + p.totalN, 0));
+  $('#plista').innerHTML = !lista.length ? '<div class="empty">No hay pedidos con estos filtros 🎉</div>'
+    : (PF.vista === 'tablero' ? tableroHtml(lista) : PF.vista === 'tabla' ? tablaPedidos(lista) : '<div class="olist">' + lista.map(cardPedido).join('') + '</div>');
+}
+
+function tablaPedidos(lista) {
+  return '<div class="card tblwrap"><table class="tbl"><thead><tr><th>Pedido</th><th>Fecha</th><th>Cliente</th><th>Municipio</th><th>Pago</th><th class="r">Total</th><th>Estado</th><th></th></tr></thead><tbody>' +
+    lista.map(p => {
+      const sig = FLUJO[p.estado], id = esc(p.id);
+      const puedeSig = sig && (!(p.estado === 'PENDIENTE_PAGO' && sig === 'CONFIRMADO') || puede('pagos.verificar'));
+      return '<tr><td><b>' + id + '</b></td><td>' + esc(p.fecha) + '</td><td>' + esc(p.nombre || ('+' + p.tel)) + '</td><td>' + esc(p.muni) + '</td><td>' + esc(p.pago) + '</td>' +
+        '<td class="r"><b>' + esc(p.total) + '</b></td><td><span class="badge b-' + esc(p.estado) + '">' + esc(p.estado.replace('_', ' ')) + '</span></td>' +
+        '<td class="acc">' + (puedeSig ? '<button class="btn xs pri" data-a="sig" data-id="' + id + '">' + SIG_TXT[p.estado] + '</button>' : '') +
+        '<button class="btn xs" data-a="otro" data-id="' + id + '">⋯</button><button class="btn xs" data-a="chat" data-id="' + id + '">💬</button></td></tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+function cardPedido(p) {
+  const sig = FLUJO[p.estado], id = esc(p.id);
+  const puedeSig = sig && (!(p.estado === 'PENDIENTE_PAGO' && sig === 'CONFIRMADO') || puede('pagos.verificar'));
+  return '<div class="oc">' +
+    '<div class="oc-h"><span class="oc-id">' + id + '</span><span class="oc-tot">' + esc(p.total) + '</span></div>' +
+    '<div class="oc-s"><span class="badge b-' + esc(p.estado) + '">' + esc(p.estado.replace('_', ' ')) + '</span><span class="oc-c">' + esc(p.nombre || 'Sin nombre') + '</span><span class="mut">' + esc(p.fecha) + '</span></div>' +
+    '<div class="oc-p">' + esc(p.productos.split(' | ').join('\n')) + '</div>' +
+    '<div class="oc-a">' + esc(p.pago) + (p.descuento ? ' · Desc. ' + esc(p.descuento) : '') + '</div>' +
+    '<div class="oc-a">📍 ' + esc(p.muni) + (p.zona ? ', zona ' + esc(p.zona) : '') + ', ' + esc(p.depto) + ' · 🏠 ' + esc(p.dir) + '</div>' +
+    (p.guia ? '<div class="oc-a">🚚 ' + esc(p.transp) + ' · Guía ' + esc(p.guia) + '</div>' : '') +
+    (p.comprobante && p.estado === 'PENDIENTE_PAGO' ? '<div class="warn" style="font-size:12px">📸 Comprobante recibido ' + esc(p.comprobante) + '</div>' : '') +
+    '<div class="oc-f">' +
+      (puedeSig ? '<button class="btn xs pri" data-a="sig" data-id="' + id + '">' + SIG_TXT[p.estado] + '</button>' : '') +
+      '<button class="btn xs" data-a="otro" data-id="' + id + '">Otro estado</button>' +
+      ((p.estado === 'PENDIENTE_PAGO' || p.pago.indexOf('Zigi') > -1) ? '<button class="btn xs" data-a="link" data-id="' + id + '">💳 ' + (p.link ? 'Reenviar link' : 'Enviar link') + '</button>' : '') +
+      '<button class="btn xs" data-a="chat" data-id="' + id + '">💬 Chat</button>' +
+      '<button class="btn xs" data-a="etq" data-id="' + id + '">🏷 Etiqueta</button>' +
+    '</div></div>';
+}
+
+async function elegirEstado(p) {
+  const opts = ESTADOS.filter(e => e !== p.estado && (e !== 'CANCELADO' || puede('pedidos.cancelar')) && (!(p.estado === 'PENDIENTE_PAGO' && e === 'CONFIRMADO') || puede('pagos.verificar')));
+  const r = await modal({ titulo: 'Cambiar estado', texto: 'Pedido ' + p.id + ' · ahora está en ' + p.estado.replace('_', ' '),
+    campos: [{ id: 'estado', label: 'Nuevo estado', tipo: 'select', opciones: opts }], ok: 'Continuar' });
+  if (r) cambiarEstado(p, r.estado);
+}
+
+function ctrlEstado(p) {
+  if (!p || !p.id || !ESTADOS || !ESTADOS.length) return '';
+  const opts = ESTADOS.filter(e =>
+    e !== p.estado &&
+    (e !== 'CANCELADO' || puede('pedidos.cancelar')) &&
+    (!(p.estado === 'PENDIENTE_PAGO' && e === 'CONFIRMADO') || puede('pagos.verificar'))
+  );
+  if (!opts.length) return '';
+  const data = esc(JSON.stringify({ id: p.id, estado: p.estado, nombre: p.nombre || '', tel: p.tel || '' }));
+  return '<select class="est-sel" data-ped="' + data + '" onchange="_onCtrlEstado(this)">' +
+    '<option value="">Estado…</option>' +
+    opts.map(e => '<option value="' + esc(e) + '">' + esc(e.replace('_', ' ')) + '</option>').join('') +
+  '</select>';
+}
+
 function _onCtrlEstado(sel) {
   const nuevo = sel.value;
   if (!nuevo) return;
@@ -993,16 +1086,29 @@ async function cambiarEstado(p, estado) {
     campos.push({ id: 'guia', label: 'Número de guía (opcional)', valor: p.guia || '' });
   }
   const r = await modal({ titulo: 'Pasar a ' + estado.replace('_', ' '),
-    texto: p.id + ' · ' + (p.nombre || p.tel) + '. Se avisará al cliente por WhatsApp.' + (estado === 'CANCELADO' ? ' El stock se devolverá al inventario.' : ''),
+    texto: p.id + ' · ' + (p.nombre || p.tel) + '. Se avisará al cliente por WhatsApp.' +
+      (estado === 'CANCELADO' ? ' El stock se devolverá al inventario.' : '') +
+      (estado === 'PENDIENTE_PAGO' ? ' Se limpiará la fecha del comprobante anterior para aceptar una nueva foto.' : ''),
     campos: campos, ok: 'Confirmar', peligro: estado === 'CANCELADO', sinFoco: !campos.length });
   if (!r) return;
   busy(true);
   try {
-    const res = await api('estado', { id: p.id, estado: estado, transp: r.transp || '', guia: r.guia || '' });
+    const res = await api('estado', {
+      id: p.id,
+      estado: estado,
+      transp: r.transp || '',
+      guia: r.guia || '',
+      limpiarComprobante: estado === 'PENDIENTE_PAGO'
+    });
     if (res.duplicado) toast('Ese pedido ya estaba en ese estado.', 'warn');
-    else toast(res.enviado ? '✅ Listo. ' + res.detalle : '⚠️ ' + res.detalle, res.enviado ? '' : 'warn');
+    else {
+      if (estado === 'PENDIENTE_PAGO') p.comprobante = '';
+      toast(res.enviado ? '✅ Listo. ' + res.detalle : '⚠️ ' + res.detalle, res.enviado ? '' : 'warn');
+    }
   } catch (e) { toast(e.message, 'err'); }
-  busy(false); mostrarTab(TAB);
+  busy(false);
+  if (TAB === 'chats' && CHAT) pollChat(true);
+  else mostrarTab(TAB);
 }
 async function enviarLink(p) {
   const r = await modal({ titulo: 'Enviar link de pago', texto: p.id + ' · ' + p.total + ' · ' + (p.nombre || p.tel),

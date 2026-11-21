@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#050b1a">
+  <meta name="theme-color" content="#090D16">
   <title>Panel de atención</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23050b1a'/%3E%3Cpolygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2' fill='none' stroke='%2322d3ff' stroke-width='1.8' stroke-linejoin='round' transform='translate(2.4 2.4) scale(.8)'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body data-modo="oscuro" data-anim="equilibrado">
+<body class="en-login" data-modo="oscuro" data-anim="equilibrado">
 
   <div class="bg" id="bgA"></div>
   <div class="bg" id="bgB"></div>
@@ -37,6 +37,7 @@
         <span style="flex:1"></span>
         <b class="hneg" id="hneg"></b>
         <span class="mut hrel" id="hreloj"></span>
+        <span class="sync hide" id="sync" title="Sincronizando con el servidor"><i></i><span class="syncl">Sincronizando…</span></span>
         <span class="mut" id="quien"></span>
         <button class="btn sec sm" id="refrescar" title="Actualizar">⟳</button>
       </header>
@@ -59,12 +60,3 @@
   <script src="js/app.js"></script>
 </body>
 </html>
-
-<!-- a) body: arranca en modo login (el fondo de foto solo se ve ahí) -->
-<body class="en-login" data-modo="oscuro" data-anim="equilibrado">
-
-<!-- b) theme-color -->
-<meta name="theme-color" content="#090D16">
-
-<!-- c) en <header>, justo antes de <span class="mut" id="quien"></span> -->
-<span class="sync hide" id="sync" title="Sincronizando con el servidor"><i></i><span class="syncl">Sincronizando…</span></span>

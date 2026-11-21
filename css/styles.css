@@ -489,12 +489,42 @@ select.est-sel{height:32px;padding:0 8px;font-size:13px;width:auto;flex:1 1 140p
 .al-acc{display:flex;gap:6px;align-items:center;flex:0 0 auto}
 .al-acc select.est-sel{width:150px;flex:none}
 
-/* Contenedor de botones dentro de la tarjeta de usuario */
-.user-card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+/* ---- Corrección de botones (.btn.sm / .btn.xs), acciones y barra lateral ---- */
+.btn.sm {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: fit-content;
+  padding: 7px 12px;
+  font-size: 13px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+body[data-dens="compacta"] .btn.sm {
+  padding: 6px 10px;
+}
+body[data-modo] .btn.xs {
+  white-space: nowrap;
+}
+#unuevo, #nuevo {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 9px 16px;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+@media (min-width: 900px) {
+  #nav button {
+    flex: 0 0 auto;
+    padding: 10px 4px;
+  }
+  #nav .nf button {
+    width: 100%;
+  }
 }
 
 .user-card-actions button {
